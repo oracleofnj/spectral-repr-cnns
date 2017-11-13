@@ -4,7 +4,6 @@ import os
 import numpy as np
 __DEFAULT_PATH = '../Images'
 
-
 def open_image(filename, path=__DEFAULT_PATH):
     """Open an image file with Pillow."""
     if filename is None:
@@ -12,6 +11,15 @@ def open_image(filename, path=__DEFAULT_PATH):
     full_path = os.path.join(path, filename)
     im = Image.open(full_path).convert('RGBA')
     return im
+
+
+def save_derived_image(im, filename=None, path=__DEFAULT_PATH):
+    """Save a pillow image as a PNG."""
+    if filename is None:
+        filename = 'Derived/{0:08x}.png'.format(np.random.randint(2 ** 31))
+    full_path = os.path.join(path, filename)
+    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+    im.save(full_path, 'PNG')
 
 
 def downscale_image(orig_image, max_width, max_height):
@@ -75,9 +83,15 @@ def add_to_background(
 
 
 def make_random_size(destination_width=128, destination_height=128):
-    left = np.random.randint(0, destination_width-32)
-    top = np.random.randint(0, destination_height-32)
-    width = np.random.randint(32, destination_width-left+1)
-    height = np.random.randint(32, destination_height-top+1)
+    """Generate random coordinates where a scaled image can be placed."""
+    scale = np.random.randint(
+        16,
+        1 + min(destination_width, destination_height)
+        )
+
+    left = np.random.randint(0, 1 + destination_width - scale)
+    top = np.random.randint(0, 1 + destination_height - scale)
+    width = scale
+    height = scale
 
     return left, top, width, height
