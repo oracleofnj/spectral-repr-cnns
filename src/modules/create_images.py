@@ -4,6 +4,7 @@ import os
 import numpy as np
 __DEFAULT_PATH = '../Images'
 
+
 def open_image(filename, path=__DEFAULT_PATH):
     """Open an image file with Pillow."""
     if filename is None:
