@@ -51,13 +51,13 @@ def add_to_background(
     destination_max_width,
     destination_max_height,
     background_image=None,
+    background_width=128,
     background_height=128,
-    background_width=128
 ):
     """Add an image to a background image.
 
     If background_image is None, the function will create a solid
-    grey background image of dimensions (background_height, background_width)
+    grey background image of dimensions (background_width, background_height)
     and paste the image onto that.
     """
     if background_image is None:
