@@ -2,16 +2,43 @@ import numpy as np
 import tensorflow as tf
 
 
-def get_low_pass_filter(shape, pool_size):
-    lowpass = np.zeros(shape=shape, dtype=np.float32)
-    cutoff_freq = int((shape[-1] / (pool_size * 2)))
-    if cutoff_freq:
-        lowpass[:, :, :cutoff_freq, :cutoff_freq] = 1
-        lowpass[:, :, :cutoff_freq, -cutoff_freq:] = 1
-        lowpass[:, :, -cutoff_freq:, :cutoff_freq] = 1
-        lowpass[:, :, -cutoff_freq:, -cutoff_freq:] = 1
-    lowpass += 1e-12
-    return lowpass
+def _tfshift(matrix, n, axis=1, invert=False):
+    """Handler for shifting one axis at a time.
+    Helpful for fftshift if invert is False and ifftshift otherwise
+    """
+    if invert:
+        mid = n - (n + 1) // 2
+    else:
+        mid = (n + 1) // 2
+    if axis == 1:
+        start = [0, 0, 0, mid]
+        end = [-1, -1, -1, mid]
+    else:
+        start = [0, 0, mid, 0]
+        end = [-1, -1, mid, -1]
+    out = tf.concat([tf.slice(matrix, start, [-1, -1, -1, -1]),
+                     tf.slice(matrix, [0, 0, 0, 0], end)], axis + 2)
+    return out
+
+
+def tf_fftshift(matrix, n):
+    """Performs similar function to numpy's fftshift
+    Note: Takes image as a channel first numpy array of shape:
+        (batch_size, channels, height, width)
+    """
+    mat = _tfshift(matrix, n, 1)
+    mat2 = _tfshift(mat, n, 0)
+    return mat2
+
+
+def tf_ifftshift(matrix, n):
+    """Performs similar function to numpy's ifftshift
+    Note: Takes image as a channel first numpy array of shape:
+        (batch_size, channels, height, width)
+    """
+    mat = _tfshift(matrix, n, 1, invert=True)
+    mat2 = _tfshift(mat, n, 0, invert=True)
+    return mat2
 
 
 def spectral_pool(image, pool_size=4):
@@ -54,10 +81,10 @@ def spectral_pool(image, pool_size=4):
     init = tf.global_variables_initializer()
     with tf.Session() as sess:
         sess.run(init)
-        im_new = sess.run([im_out],
+        im_ffto, im_new = sess.run([im_fft, im_out],
                            feed_dict={im: image})
 
-    return im_new
+    return im_ffto, im_new
 
 
 def max_pool(image, pool_size=2):
