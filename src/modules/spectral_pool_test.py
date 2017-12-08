@@ -1,3 +1,6 @@
+"""NOTE: THIS CODE ONLY WORKS FOR A SINGLE IMAGE.
+TO POOL MULTIPLE IMAGES TOGETHER, CHECKOUT spectral_pool.py
+"""
 import numpy as np
 import tensorflow as tf
 from PIL import Image
