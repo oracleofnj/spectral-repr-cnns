@@ -1,0 +1,214 @@
+from .layers import default_conv_layer, spectral_pool_layer
+import numpy as np
+import tensorflow as tf
+
+
+class CNN_Spectral_Pool(object):
+    def __init__(self,
+                 X_train, y_train,
+                 X_val=None, y_val=None,
+                 M=5,
+                 conv_filter_size=(3, 3),
+                 gamma=0.85,
+                 alpha=0.3,
+                 beta=0.15,
+                 weight_decay=1e-3,
+                 momentum=0.95,
+                 learning_rate=0.0088,
+                 lr_reduction_epochs=[100, 140],
+                 lr_reduction_factor=0.1,
+                 max_num_filters=288,
+                 random_seed=0):
+        self.X_train = X_train
+        self.y_train = y_train
+        self.X_val = X_val
+        self.y_val = y_val
+
+        self.M = M,
+        self.conv_filter_size = conv_filter_size,
+        self.gamma = gamma,
+        self.alpha = alpha,
+        self.beta = beta,
+        self.weight_decay = weight_decay,
+        self.momentum = momentum,
+        self.learning_rate = learning_rate,
+        self.lr_reduction_epochs = lr_reduction_epochs,
+        self.lr_reduction_factor = lr_reduction_factor,
+        self.max_num_filters = max_num_filters
+
+        self.random_seed = random_seed
+
+        # some internal variables:
+        self.conv_layers = []
+        self.sp_layers = []
+
+    def _get_cnn_num_filters(self, m):
+        """ Get number of filters for CNN
+        Args:
+            m: current layer number
+        """
+        return np.min(self.max_num_filters,
+                      96 + 32 * m)
+
+    def _get_sp_dim(self, n):
+        """Get filter size for current layer
+        Args:
+            n: size of image in layer
+        """
+        fsize = int(self.gamma * n)
+        # make odd if even
+        if fsize % 2 == 0:
+            fsize -= 1
+        # minimum size is 1:
+        return max(1, fsize)
+
+    def _get_frq_dropout(self, n, m):
+        """Get the number of dimensions to make 0 in the
+        frequency domain.
+        Args:
+            n: current size of spectral filter
+            m: current layer index
+        """
+        c = self.alpha + (m / self.M) * (self.beta - self.alpha)
+        ll = int(c * n)
+        ul = m + 1
+        ndrop = np.random.uniform(ll, ul)
+        return ndrop
+
+    def build_graph(self, input_x, input_y):
+        tf.reset_default_graph()
+        print("Building tf graph...")
+
+        # variable alias:
+        conv_layers = self.conv_layers
+        sp_layers = self.sp_layers
+        seed = self.random_seed
+
+        # iterate and define M layers:
+        for m in range(1, self.M + 1):
+            if m == 1:
+                in_x = input_x
+            else:
+                in_x = sp_layers[-1].output()
+
+            # get number of channels & image size
+            # Note: we're working in channel first domain
+            _, nchannel, img_size, _ = in_x.get_shape().as_list()
+            nfilters = self._get_cnn_num_filters(m)
+            print('Adding conv layer {0} with {1} filters'.format(m, nfilters))
+            conv_layer = default_conv_layer(input_x=in_x,
+                                            in_channel=nchannel,
+                                            out_channel=nfilters,
+                                            kernel_shape=self.conv_filter_size,
+                                            rand_seed=seed,
+                                            m=m)
+            conv_layers.append(conv_layer)
+
+            # TODO: implement frequency dropout
+            filter_size = self._get_sp_dim(img_size)
+            print('Adding spectral pool layer {0} with {1} filter size'.format(
+                                                                m, filter_size))
+            sp_layer = spectral_pool_layer(input_x=conv_layer.output(),
+                                           filter_size=filter_size)
+            sp_layers.append(sp_layer)
+
+        # Add another conv layer:
+        in_x = sp_layers[-1].output()
+        _, nchannel, img_size, _ = in_x.get_shape().as_list()
+        nfilters = self._get_cnn_num_filters(m)
+        layer = default_conv_layer(input_x=in_x,
+                                   in_channel=nchannel,
+                                   out_channel=nfilters)
+
+
+
+        # define the variables and parameter needed during training
+        with tf.name_scope('inputs'):
+            xs = tf.placeholder(shape=[None, 32, 32, 3], dtype=tf.float32)
+            ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
+            train_phase = tf.placeholder(shape=(), dtype=tf.bool)
+
+    
+
+
+    # output, loss = my_LeNet(xs, ys, conv_map,
+    #                      channel_num=3,
+    #                      output_size=10,
+    #                      fc_units=fc_units,
+    #                      l2_norm=l2_norm,
+    #                      seed=seed,
+    #                      train_phase=train_phase)
+
+    # iters = int(X_train.shape[0] / batch_size)
+    # print('number of batches for training: {}'.format(iters))
+
+    # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    # with tf.control_dependencies(update_ops):
+    #     step = train_step(loss)
+    # eve = evaluate(output, ys)
+
+    # iter_total = 0
+    # best_acc = 0
+    # if model_name is None:
+    #     cur_model_name = 'lenet_{}'.format(int(time.time()))
+    # else:
+    #     cur_model_name = 'lenet_{}'.format(model_name)
+
+    # with tf.Session() as sess:
+    #     merge = tf.summary.merge_all()
+
+    #     writer = tf.summary.FileWriter("log/{}".format(cur_model_name), sess.graph)
+    #     saver = tf.train.Saver()
+    #     sess.run(tf.global_variables_initializer())
+
+    #     # try to restore the pre_trained
+    #     if pre_trained_model is not None:
+    #         try:
+    #             print("Load the model from: {}".format(pre_trained_model))
+    #             saver.restore(sess, 'model/{}'.format(pre_trained_model))
+    #         except Exception:
+    #             print("Load model Failed!")
+    #             pass
+
+    #     for epc in range(epoch):
+    #         print("epoch {} ".format(epc + 1))
+
+    #         for itr in range(iters):
+    #             iter_total += 1
+
+    #             training_batch_x = X_train[itr * batch_size: (1 + itr) * batch_size]
+    #             training_batch_y = y_train[itr * batch_size: (1 + itr) * batch_size]
+
+    #             _, cur_loss, train_eve = sess.run([step, loss, eve],
+    #                                               feed_dict={
+    #                                    xs: training_batch_x,
+    #                                    ys: training_batch_y,
+    #                                    train_phase: True})
+
+    #             if iter_total % 100 == 0:
+    #                 # do validation
+    #                 valid_eve, merge_result = sess.run([eve, merge],
+    #                                                    feed_dict={
+    #                                                    xs: X_val,
+    #                                                    ys: y_val,
+    #                                                    train_phase: False})
+    #                 valid_acc = 100 - valid_eve * 100 / y_val.shape[0]
+    #                 train_acc = 100 - train_eve * 100 / training_batch_y.shape[0]
+    #                 if verbose:
+    #                     print('{}/{} loss: {} | training accuracy: {} | validation accuracy : {}%'.format(
+    #                         batch_size * (itr + 1),
+    #                         X_train.shape[0],
+    #                         cur_loss,
+    #                         train_acc,
+    #                         valid_acc))
+
+    #                 # save the merge result summary
+    #                 writer.add_summary(merge_result, iter_total)
+
+    #                 # when achieve the best validation accuracy, we store the model paramters
+    #                 if valid_acc > best_acc:
+    #                     print('Best validation accuracy! iteration:{} accuracy: {}%'.format(iter_total, valid_acc))
+    #                     best_acc = valid_acc
+    #                     saver.save(sess, 'model/{}'.format(cur_model_name))
+
+    # print("Traning ends. The best valid accuracy is {}. Model named {}.".format(best_acc, cur_model_name))
