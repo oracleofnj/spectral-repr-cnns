@@ -51,8 +51,9 @@ def spectral_pool(image, filter_size=3,
         return_fft: bool, if True function also returns the raw
                           fourier transform
     Returns:
-        An image of shape (n, n, 1) if grayscale is True or same as input
-    NOTE: For best performance, both filter size and image size should be ODD.
+        An image of same shape as input
+    NOTE: Filter size is enforced to be odd here. It is required to
+    prevent the need for treating edge cases
     """
     # filter size should always be odd:
     assert filter_size % 2
@@ -134,6 +135,14 @@ def max_pool(image, pool_size=2):
 
 
 def l2_loss_images(orig_images, mod_images):
+    """Calculates the loss for a set of modified images vs original
+    formular: l2(orig-mod)/l2(orig)
+    Args:
+        orig_images: numpy array size (batch, dims..)
+        mod_images: numpy array of same dim as orig_images
+    Returns:
+        single value, i.e. loss
+    """
     n = orig_images.shape[0]
     # convert to 2d:
     oimg = orig_images.reshape(n, -1)
