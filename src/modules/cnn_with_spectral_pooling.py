@@ -199,8 +199,9 @@ class CNN_Spectral_Pool(object):
         return error_num
 
     def train(self, X_train, y_train, X_val, y_test,
-              batch_size=512, epochs=10):
-        loss_vals = []
+              batch_size=512, epochs=10, val_test_frq=20):
+        self.loss_vals = []
+        self.train_error = []
         with tf.name_scope('inputs'):
             xs = tf.placeholder(shape=[None, 3, 32, 32], dtype=tf.float32)
             ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
@@ -226,6 +227,7 @@ class CNN_Spectral_Pool(object):
 
                     for itr in range(iters):
                         iter_total += 1
+                        print("Training batch {0}".format(itr))
 
                         training_batch_x = X_train[itr * batch_size:
                                                    (1 + itr) * batch_size]
@@ -236,8 +238,8 @@ class CNN_Spectral_Pool(object):
                                             [step, loss, eve],
                                             feed_dict={xs: training_batch_x,
                                                        ys: training_batch_y})
-                        loss_vals.append(cur_loss)
-        return loss_vals
+                        self.loss_vals.append(cur_loss)
+                        self.train_error.append(train_eve / batch_size)
 
                     # if iter_total % 100 == 0:
                     #     # do validation
