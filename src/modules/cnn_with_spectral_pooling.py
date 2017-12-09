@@ -1,4 +1,4 @@
-from .layers import default_conv_layer, spectral_pool_layer
+from .layers import default_conv_layer, spectral_pool_layer, fc_layer
 import numpy as np
 import tensorflow as tf
 
@@ -7,6 +7,7 @@ class CNN_Spectral_Pool(object):
     def __init__(self,
                  X_train, y_train,
                  X_val=None, y_val=None,
+                 num_output=10,
                  M=5,
                  conv_filter_size=(3, 3),
                  gamma=0.85,
@@ -15,6 +16,7 @@ class CNN_Spectral_Pool(object):
                  weight_decay=1e-3,
                  momentum=0.95,
                  learning_rate=0.0088,
+                 l2_norm=0.01,
                  lr_reduction_epochs=[100, 140],
                  lr_reduction_factor=0.1,
                  max_num_filters=288,
@@ -23,17 +25,19 @@ class CNN_Spectral_Pool(object):
         self.y_train = y_train
         self.X_val = X_val
         self.y_val = y_val
+        self.num_output = num_output
 
-        self.M = M,
-        self.conv_filter_size = conv_filter_size,
-        self.gamma = gamma,
-        self.alpha = alpha,
-        self.beta = beta,
-        self.weight_decay = weight_decay,
-        self.momentum = momentum,
-        self.learning_rate = learning_rate,
-        self.lr_reduction_epochs = lr_reduction_epochs,
-        self.lr_reduction_factor = lr_reduction_factor,
+        self.M = M
+        self.conv_filter_size = conv_filter_size
+        self.gamma = gamma
+        self.alpha = alpha
+        self.beta = beta
+        self.weight_decay = weight_decay
+        self.momentum = momentum
+        self.learning_rate = learning_rate
+        self.l2_norm = l2_norm
+        self.lr_reduction_epochs = lr_reduction_epochs
+        self.lr_reduction_factor = lr_reduction_factor
         self.max_num_filters = max_num_filters
 
         self.random_seed = random_seed
@@ -84,6 +88,9 @@ class CNN_Spectral_Pool(object):
         sp_layers = self.sp_layers
         seed = self.random_seed
 
+        # conv layer weights:
+        conv_w = []
+
         # iterate and define M layers:
         for m in range(1, self.M + 1):
             if m == 1:
@@ -103,11 +110,12 @@ class CNN_Spectral_Pool(object):
                                             rand_seed=seed,
                                             m=m)
             conv_layers.append(conv_layer)
+            conv_w.append(conv_layer.weight)
 
             # TODO: implement frequency dropout
             filter_size = self._get_sp_dim(img_size)
             print('Adding spectral pool layer {0} with {1} filter size'.format(
-                                                                m, filter_size))
+                                                            m, filter_size))
             sp_layer = spectral_pool_layer(input_x=conv_layer.output(),
                                            filter_size=filter_size)
             sp_layers.append(sp_layer)
@@ -115,18 +123,71 @@ class CNN_Spectral_Pool(object):
         # Add another conv layer:
         in_x = sp_layers[-1].output()
         _, nchannel, img_size, _ = in_x.get_shape().as_list()
-        nfilters = self._get_cnn_num_filters(m)
+        nfilters = self._get_cnn_num_filters(self.M)
         layer = default_conv_layer(input_x=in_x,
                                    in_channel=nchannel,
-                                   out_channel=nfilters)
+                                   out_channel=nfilters,
+                                   kernel_shape=(1, 1),
+                                   rand_seed=seed)
+        conv_layers.append(layer)
+
+        # Add last conv layer:
+        in_x = conv_layers[-1].output()
+        _, nchannel, img_size, _ = in_x.get_shape().as_list()
+        nfilters = 10
+        layer = default_conv_layer(input_x=in_x,
+                                   in_channel=nchannel,
+                                   out_channel=nfilters,
+                                   kernel_shape=(1, 1),
+                                   rand_seed=seed)
+        conv_layers.append(layer)
+
+        # update class variables:
+        self.conv_layers = conv_layers
+        self.sp_layers = sp_layers
+
+        # final softmax layer:
+        # flatten
+        pool_shape = conv_layers[-1].output().get_shape()
+        img_vector_length = (pool_shape[1].value * pool_shape[2].value *
+                             pool_shape[3].value)
+        flatten = tf.reshape(conv_layers[-1].output(),
+                             shape=[-1, img_vector_length])
+
+        # fc layer
+        fc_layer0 = fc_layer(
+                            input_x=flatten,
+                            in_size=img_vector_length,
+                            out_size=self.num_output,
+                            rand_seed=seed,
+                            activation_function=None,
+                            m=0)
+        fc_w = [fc_layer0.weight]
+
+        # define loss:
+        with tf.name_scope("loss"):
+            l2_loss = tf.reduce_sum([tf.norm(w) for w in fc_w])
+            l2_loss += tf.reduce_sum([tf.norm(w, axis=[-2, -1])
+                                                            for w in conv_w])
+
+            label = tf.one_hot(input_y, self.num_output)
+            cross_entropy_loss = tf.reduce_mean(
+                tf.nn.softmax_cross_entropy_with_logits(
+                                                labels=label,
+                                                logits=fc_layer0.output()),
+                name='cross_entropy')
+            loss = tf.add(cross_entropy_loss,
+                          self.l2_norm * l2_loss,
+                          name='loss')
+
+        return fc_layer.output(), loss
 
 
-
-        # define the variables and parameter needed during training
-        with tf.name_scope('inputs'):
-            xs = tf.placeholder(shape=[None, 32, 32, 3], dtype=tf.float32)
-            ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
-            train_phase = tf.placeholder(shape=(), dtype=tf.bool)
+        # # define the variables and parameter needed during training
+        # with tf.name_scope('inputs'):
+        #     xs = tf.placeholder(shape=[None, 32, 32, 3], dtype=tf.float32)
+        #     ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
+        #     train_phase = tf.placeholder(shape=(), dtype=tf.bool)
 
     
 
