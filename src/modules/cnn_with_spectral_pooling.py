@@ -7,7 +7,7 @@ class CNN_Spectral_Pool(object):
     def __init__(self,
                  num_output=10,
                  M=5,
-                 conv_filter_size=(3, 3),
+                 conv_filter_size=3,
                  gamma=0.85,
                  alpha=0.3,
                  beta=0.15,
@@ -125,7 +125,7 @@ class CNN_Spectral_Pool(object):
         layer = default_conv_layer(input_x=in_x,
                                    in_channel=nchannel,
                                    out_channel=nfilters,
-                                   kernel_shape=(1, 1),
+                                   kernel_shape=1,
                                    rand_seed=seed,
                                    m=self.M + 1)
         conv_layers.append(layer)
@@ -139,7 +139,7 @@ class CNN_Spectral_Pool(object):
         layer = default_conv_layer(input_x=in_x,
                                    in_channel=nchannel,
                                    out_channel=nfilters,
-                                   kernel_shape=(1, 1),
+                                   kernel_shape=1,
                                    rand_seed=seed,
                                    m=self.M + 2)
         conv_layers.append(layer)
