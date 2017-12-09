@@ -102,12 +102,12 @@ class spectral_pool_layer(object):
         # assert only 1 dimension passed for filter size
         assert isinstance(filter_size, int)
 
-        dim = input_x.get_shape().as_list()[1]
+        dim = input_x.get_shape().as_list()[2]
 
         im_fft = tf.fft2d(tf.cast(input_x, tf.complex64))
 
         # shift the image and crop based on the bounding box:
-        im_fshift = self.tf_fftshift(im_fft, dim)
+        im_fshift = self._tf_fftshift(im_fft, dim)
 
         # make channels last as required by crop function
         im_channel_last = tf.transpose(im_fshift, perm=[0, 2, 3, 1])
@@ -120,7 +120,7 @@ class spectral_pool_layer(object):
         # perform ishift and take the inverse fft and throw img part
         # make channels first for ishift and ifft2d:
         im_channel_first = tf.transpose(im_cropped, perm=[0, 3, 1, 2])
-        im_ishift = self.tf_ifftshift(im_channel_first, filter_size)
+        im_ishift = self._tf_ifftshift(im_channel_first, filter_size)
         im_out = tf.real(tf.ifft2d(im_ishift))
 
         # THERE COULD BE A NORMALISING STEP HERE SIMILAR TO BATCH NORM BUT
