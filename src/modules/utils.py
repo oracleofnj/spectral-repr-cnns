@@ -31,7 +31,8 @@ def download_cifar10():
 
 
 def load_cifar10(num_batches=5,
-                 get_test_data=True):
+                 get_test_data=True,
+                 channels_last=True):
     """Load the cifar data
     Args:
         num_batches: int, the number of batches of data to return
@@ -67,6 +68,11 @@ def load_cifar10(num_batches=5,
     # convert to RGB format:
     images = images.reshape(-1, 3, 32, 32)
 
+    # normalize data by dividing by 255:
+    images = images / 255.
+    if channels_last:
+        images = np.moveaxis(images, 1, -1)
+
     if not get_test_data:
         return images, labels
 
@@ -77,9 +83,11 @@ def load_cifar10(num_batches=5,
     test_images = content[b'data'].reshape(-1, 3, 32, 32)
     test_labels = np.asarray(content[b'labels'])
 
-    # normalize data by dividing by 255:
-    images = images / 255.
+    # normalize:
     test_images = test_images / 255.
+    # make channels last:
+    if channels_last:
+        test_images = np.moveaxis(test_images, 1, -1)
 
     return images, labels, test_images, test_labels
 

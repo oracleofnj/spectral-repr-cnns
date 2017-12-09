@@ -18,7 +18,8 @@ class CNN_Spectral_Pool(object):
                  lr_reduction_epochs=[100, 140],
                  lr_reduction_factor=0.1,
                  max_num_filters=288,
-                 random_seed=0):
+                 random_seed=0,
+                 verbose=False):
         """Initialize model, defaults are set as per the optimum
         hyperparameters stated in the journal.
         """
@@ -35,8 +36,8 @@ class CNN_Spectral_Pool(object):
         self.lr_reduction_epochs = lr_reduction_epochs
         self.lr_reduction_factor = lr_reduction_factor
         self.max_num_filters = max_num_filters
-
         self.random_seed = random_seed
+        self.verbose=verbose
 
         # some internal variables:
         self.conv_layers = []
@@ -74,6 +75,17 @@ class CNN_Spectral_Pool(object):
         ul = m + 1
         ndrop = np.random.uniform(ll, ul)
         return ndrop
+    
+    def _print_message(self, name, args):
+        if not self.verbose:
+            return
+        if name == 'conv':
+            print('Adding conv layer {0} | Input size: {1} | Input channels: {2} | #filters: {3} | filter size: {4}'.format(
+                                        args[0], args[1], args[2], args[3], args[4]))
+        if name == 'sp':
+            print('Adding spectral pool layer {0} | Input size: {1} | filter size: ({2},{2})'.format(
+                                        args[0], args[1], args[2]))
+            
 
     def build_graph(self, input_x, input_y):
         print("Building tf graph...")
@@ -95,10 +107,9 @@ class CNN_Spectral_Pool(object):
 
             # get number of channels & image size
             # Note: we're working in channel first domain
-            _, nchannel, img_size, _ = in_x.get_shape().as_list()
+            _, _, img_size, nchannel = in_x.get_shape().as_list()
             nfilters = self._get_cnn_num_filters(m)
-            print('Adding conv layer {0} with {1} filters of size {2}'.format(
-                                        m, nfilters, self.conv_filter_size))
+            self._print_message('conv', (m, img_size, nchannel, nfilters, self.conv_filter_size))
             conv_layer = default_conv_layer(input_x=in_x,
                                             in_channel=nchannel,
                                             out_channel=nfilters,
@@ -109,19 +120,19 @@ class CNN_Spectral_Pool(object):
             self.conv_layer_weights.append(conv_layer.weight)
 
             # TODO: implement frequency dropout
+            in_x = conv_layer.output()
+            _, _, img_size, _ = in_x.get_shape().as_list()
             filter_size = self._get_sp_dim(img_size)
-            print('Adding spectral pool layer {0} with {1} filter size'.format(
-                                                            m, filter_size))
-            sp_layer = spectral_pool_layer(input_x=conv_layer.output(),
+            self._print_message('sp', (self.M + 1, img_size, filter_size))
+            sp_layer = spectral_pool_layer(input_x=in_x,
                                            filter_size=filter_size)
             sp_layers.append(sp_layer)
 
         # Add another conv layer:
         in_x = sp_layers[-1].output()
-        _, nchannel, img_size, _ = in_x.get_shape().as_list()
+        _, _, img_size, nchannel = in_x.get_shape().as_list()
         nfilters = self._get_cnn_num_filters(self.M)
-        print('Adding conv layer {0} with {1} filters of size {2}'.format(
-                                        self.M + 1, nfilters, (1, 1)))
+        self._print_message('conv', (self.M + 1, img_size, nchannel, nfilters, 1))
         layer = default_conv_layer(input_x=in_x,
                                    in_channel=nchannel,
                                    out_channel=nfilters,
@@ -132,10 +143,9 @@ class CNN_Spectral_Pool(object):
 
         # Add last conv layer:
         in_x = conv_layers[-1].output()
-        _, nchannel, img_size, _ = in_x.get_shape().as_list()
+        _, _, img_size, nchannel = in_x.get_shape().as_list()
         nfilters = 10
-        print('Adding conv layer {0} with {1} filters of size {2}'.format(
-                                        self.M + 2, nfilters, (1, 1)))
+        self._print_message('conv', (self.M + 2, img_size, nchannel, nfilters, 1))
         layer = default_conv_layer(input_x=in_x,
                                    in_channel=nchannel,
                                    out_channel=nfilters,
@@ -201,9 +211,9 @@ class CNN_Spectral_Pool(object):
     def train(self, X_train, y_train, X_val, y_test,
               batch_size=512, epochs=10, val_test_frq=20):
         self.loss_vals = []
-        self.train_error = []
+        self.train_accuracy = []
         with tf.name_scope('inputs'):
-            xs = tf.placeholder(shape=[None, 3, 32, 32], dtype=tf.float32)
+            xs = tf.placeholder(shape=[None, 32, 32, 3], dtype=tf.float32)
             ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
 
             output, loss = self.build_graph(xs, ys)
@@ -239,7 +249,8 @@ class CNN_Spectral_Pool(object):
                                             feed_dict={xs: training_batch_x,
                                                        ys: training_batch_y})
                         self.loss_vals.append(cur_loss)
-                        self.train_error.append(train_eve / batch_size)
+                        self.train_accuracy.append(1 - train_eve / batch_size)
+                    print(self.train_accuracy[-1])
 
                     # if iter_total % 100 == 0:
                     #     # do validation

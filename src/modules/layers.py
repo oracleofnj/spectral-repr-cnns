@@ -16,8 +16,8 @@ class default_conv_layer(object):
         :param index: The layer index used for naming
         """
         assert len(input_x.shape) == 4
-        assert input_x.shape[2] == input_x.shape[3]
-        assert input_x.shape[1] == in_channel
+        assert input_x.shape[1] == input_x.shape[2]
+        assert input_x.shape[3] == in_channel
 
         # Alternative using layers but not using it
         # with tf.variable_scope('conv_layer_{0}'.format(m)):
