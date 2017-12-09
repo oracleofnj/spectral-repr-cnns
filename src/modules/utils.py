@@ -75,4 +75,8 @@ def load_cifar10(num_batches=5,
     test_images = content[b'data'].reshape(-1, 3, 32, 32)
     test_labels = np.asarray(content[b'labels'])
 
+    # normalize data by dividing by 255:
+    images = images / 255.
+    test_images = test_images / 255.
+
     return images, labels, test_images, test_labels
