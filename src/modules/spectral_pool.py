@@ -41,65 +41,87 @@ def tf_ifftshift(matrix, n):
     return mat2
 
 
-def spectral_pool(image, pool_size=4):
+def spectral_pool(image, filter_size=3,
+                  return_fft=False):
     """ Perform a single spectral pool operation.
     Args:
-        image: numpy array representing an image
-            shape: (num_images, channel, height, width)
-        pool_size: number of dimensions to throw away in each dimension,
-                   same as the filter size of max_pool
+        image: numpy array representing an image, channels last
+            shape: (batch_size, height, width, channel)
+        filter_size: the final dimension of the filter required
+        return_fft: bool, if True function also returns the raw
+                          fourier transform
     Returns:
         An image of shape (n, n, 1) if grayscale is True or same as input
+    NOTE: For best performance, both filter size and image size should be ODD.
     """
+    # filter size should always be odd:
+    assert filter_size % 2
+
     tf.reset_default_graph()
     im = tf.placeholder(shape=image.shape, dtype=tf.float32)
-    # make channels first
-    im_fft = tf.fft2d(tf.cast(im, tf.complex64))
-    lowpass = tf.get_variable(name='lowpass',
-                              initializer=get_low_pass_filter(
-                                    im.get_shape().as_list(),
-                                    pool_size))
-    im_magnitude = tf.multiply(tf.abs(im_fft), lowpass)
-    im_angles = tf.angle(im_fft)
-    part1 = tf.complex(real=im_magnitude,
-                       imag=tf.zeros_like(im_angles))
-    part2 = tf.exp(tf.complex(real=tf.zeros_like(im_magnitude),
-                              imag=im_angles))
-    im_fft_lowpass = tf.multiply(part1, part2)
-    im_transformed = tf.ifft2d(im_fft_lowpass)
+    dim = im.get_shape().as_list()[1]
 
-    # make channels last and real values:
-    im_channel_last = tf.real(tf.transpose(im_transformed, perm=[0, 2, 3, 1]))
+    # make channels first & get fft
+    im_channel_first = tf.transpose(im, perm=[0, 3, 1, 2])
+    im_fft = tf.fft2d(tf.cast(im_channel_first, tf.complex64))
+
+    # shift the image and crop based on the bounding box:
+    im_fshift = tf_fftshift(im_fft, dim)
+
+    # make channels last as required by crop function
+    im_channel_last = tf.transpose(im_fshift, perm=[0, 2, 3, 1])
+
+    offset = int(dim / 2) - int(filter_size / 2)
+    im_cropped = tf.image.crop_to_bounding_box(im_channel_last, offset, offset,
+                                               filter_size, filter_size)
+
+    # pad zeros to the image
+    # this is required only when we're visualizing the image and not in
+    # the final spectral layer
+    # required to handle odd and even image size
+    offset = int((dim + 1 - filter_size) / 2)
+    im_pad = tf.image.pad_to_bounding_box(im_cropped, offset, offset, dim, dim)
+    # im_pad = im_cropped
+
+    # perform ishift and take the inverse fft and throw img part
+    # make channels first for ishift and ifft2d:
+    im_channel_first2 = tf.transpose(im_pad, perm=[0, 3, 1, 2])
+    im_ishift = tf_ifftshift(im_channel_first2, dim)
+    im_channel_last = tf.transpose(tf.real(tf.ifft2d(im_ishift)),
+                                   perm=[0, 2, 3, 1])
 
     # normalize image:
     channel_max = tf.reduce_max(im_channel_last, axis=(0, 1, 2))
     channel_min = tf.reduce_min(im_channel_last, axis=(0, 1, 2))
-    im_scaled = tf.divide(im_channel_last - channel_min,
-                          channel_max - channel_min)
-    im_out = tf.real(tf.transpose(im_scaled, perm=[0, 3, 1, 2]))
+    im_out = tf.divide(im_channel_last - channel_min,
+                       channel_max - channel_min)
 
     init = tf.global_variables_initializer()
     with tf.Session() as sess:
         sess.run(init)
-        im_ffto, im_new = sess.run([im_fft, im_out],
-                           feed_dict={im: image})
-
-    return im_ffto, im_new
+        if return_fft:
+            im_fftout, im_new = sess.run([im_fft, im_out],
+                                         feed_dict={im: image})
+            return im_fftout, im_new
+        else:
+            im_new = sess.run([im_out],
+                               feed_dict={im: image})
+            return im_new
 
 
 def max_pool(image, pool_size=2):
     """ Perform a single max pool operation.
     Args:
         image: numpy array representing an image
-            shape: (num_images, channel, height, width)
+            shape: (num_images, height, width, channel)
         pool_size: number of dimensions to throw away in each dimension,
                    same as the filter size of max_pool
     Returns:
         An image of shape (n, n, 1) if grayscale is True or same as input
     """
-    imsize = image.shape[-1]
+    imsize = image.shape[1]
 
-    im_channel_last = np.moveaxis(image, (0, 1), (2, 3))
+    im_channel_last = np.moveaxis(image, 0, 2)
     im_new = im_channel_last.copy()
     for i in range(0, imsize, pool_size):
         for j in range(0, imsize, pool_size):
@@ -107,7 +129,7 @@ def max_pool(image, pool_size=2):
                                              j: j + pool_size],
                                              axis=(0, 1))
             im_new[i: i + pool_size, j: j + pool_size] = max_val
-    im_new = np.moveaxis(im_new, (2, 3), (0, 1))
+    im_new = np.moveaxis(im_new, 2, 0)
     return im_new
 
 
