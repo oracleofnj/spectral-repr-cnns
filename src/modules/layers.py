@@ -6,7 +6,7 @@ class default_conv_layer(object):
     def __init__(self, input_x, in_channel, out_channel,
                  kernel_shape, rand_seed, m=0):
         """
-        NOTE: Image should be CHANNEL FIRST
+        NOTE: Image should be CHANNEL LAST
         :param input_x: Should be a 4D array like:
                             (batch_num, channel_num, img_len, img_len)
         :param in_channel: The number of channels
@@ -19,23 +19,50 @@ class default_conv_layer(object):
         assert input_x.shape[2] == input_x.shape[3]
         assert input_x.shape[1] == in_channel
 
+        # Alternative using layers but not using it
+        # with tf.variable_scope('conv_layer_{0}'.format(m)):
+        # conv_out = tf.layers.conv2d(
+        #                 inputs=input_x,
+        #                 filters=out_channel,
+        #                 kernel_size=kernel_shape,
+        #                 strides=(1, 1),
+        #                 padding='valid',
+        #                 data_format='channels_first',
+        #                 activation=tf.nn.relu,
+        #                 use_bias=True,
+        #                 kernel_initializer=tf.glorot_uniform_initializer(
+        #                                                 seed=rand_seed),
+        #                 bias_initializer=tf.glorot_uniform_initializer(
+        #                                                 seed=rand_seed),
+        #                 name='conv_layer_{0}'.format(m),
+        #                 trainable=True
+        #                             )
         with tf.variable_scope('conv_layer_{0}'.format(m)):
-            conv_out = tf.layers.conv2d(
-                            inputs=input_x,
-                            filters=out_channel,
-                            kernel_size=kernel_shape,
-                            strides=(1, 1),
-                            padding='valid',
-                            data_format='channels_first',
-                            activation=tf.nn.relu,
-                            use_bias=True,
-                            kernel_initializer=tf.glorot_uniform_initializer(
-                                                            seed=rand_seed),
-                            bias_initializer=tf.glorot_uniform_initializer(
-                                                            seed=rand_seed),
-                            name='conv_layer_{0}'.format(m),
-                            trainable=True
-                                        )
+            with tf.name_scope('conv_kernel'):
+                w_shape = [kernel_shape, kernel_shape, in_channel, out_channel]
+                weight = tf.get_variable(
+                     name='conv_kernel_{0}'.format(m),
+                     shape=w_shape,
+                     initializer=tf.glorot_uniform_initializer(seed=rand_seed))
+                self.weight = weight
+
+            with tf.variable_scope('conv_bias'):
+                b_shape = [out_channel]
+                bias = tf.get_variable(
+                   name='conv_bias_{0}'.format(m), shape=b_shape,
+                   initializer=tf.glorot_uniform_initializer(seed=rand_seed))
+                self.bias = bias
+
+            # strides [1, x_movement, y_movement, 1]
+            conv_out = tf.nn.conv2d(input_x, weight,
+                                    strides=[1, 1, 1, 1],
+                                    padding="SAME")
+            cell_out = tf.nn.relu(conv_out + bias)
+
+            self.cell_out = cell_out
+
+            tf.summary.histogram('conv_layer/{}/kernel'.format(m), weight)
+            tf.summary.histogram('conv_layer/{}/bias'.format(m), bias)
             self.cell_out = conv_out
 
     def output(self):
@@ -88,12 +115,12 @@ class spectral_pool_layer(object):
         """ Perform a single spectral pool operation.
         Args:
             input_x: numpy array representing an image, channels last
-                shape: (batch_size, channel, height, width)
+                shape: (batch_size, height, width, channel)
             filter_size: int, the final dimension of the filter required
             return_fft: bool, if True function also returns the raw
                               fourier transform
         Returns:
-            An image of same shape as input
+            An image of similar shape as input after reduction
         NOTE: Filter size is enforced to be odd here. It is required to
         prevent the need for treating edge cases
         """
@@ -103,8 +130,10 @@ class spectral_pool_layer(object):
         assert isinstance(filter_size, int)
 
         dim = input_x.get_shape().as_list()[2]
+        im_channel_first = tf.transpose(input_x,
+                                        perm=[0, 3, 1, 2])
 
-        im_fft = tf.fft2d(tf.cast(input_x, tf.complex64))
+        im_fft = tf.fft2d(tf.cast(im_channel_first, tf.complex64))
 
         # shift the image and crop based on the bounding box:
         im_fshift = self._tf_fftshift(im_fft, dim)
@@ -121,7 +150,10 @@ class spectral_pool_layer(object):
         # make channels first for ishift and ifft2d:
         im_channel_first = tf.transpose(im_cropped, perm=[0, 3, 1, 2])
         im_ishift = self._tf_ifftshift(im_channel_first, filter_size)
-        im_out = tf.real(tf.ifft2d(im_ishift))
+        im_real = tf.real(tf.ifft2d(im_ishift))
+
+        # make channels last as required by CNN
+        im_out = tf.transpose(im_real, perm=[0, 2, 3, 1])
 
         # THERE COULD BE A NORMALISING STEP HERE SIMILAR TO BATCH NORM BUT
         # I'M SKIPPING IT HERE
