@@ -84,7 +84,7 @@ class CNN_Spectral_Pool(object):
         seed = self.random_seed
 
         # conv layer weights:
-        # conv_w = []
+        self.conv_layer_weights = []
 
         # iterate and define M layers:
         for m in range(1, self.M + 1):
@@ -106,7 +106,7 @@ class CNN_Spectral_Pool(object):
                                             rand_seed=seed,
                                             m=m)
             conv_layers.append(conv_layer)
-            # conv_w.append(conv_layer.weight)
+            self.conv_layer_weights.append(conv_layer.weight)
 
             # TODO: implement frequency dropout
             filter_size = self._get_sp_dim(img_size)
@@ -170,8 +170,8 @@ class CNN_Spectral_Pool(object):
         # define loss:
         with tf.name_scope("loss"):
             l2_loss = tf.reduce_sum([tf.norm(w) for w in fc_w])
-            # l2_loss += tf.reduce_sum([tf.norm(w, axis=[-2, -1])
-            #                                                 for w in conv_w])
+            l2_loss += tf.reduce_sum([tf.norm(w, axis=[-2, -1])
+                                      for w in self.conv_layer_weights])
 
             label = tf.one_hot(input_y, self.num_output)
             cross_entropy_loss = tf.reduce_mean(
