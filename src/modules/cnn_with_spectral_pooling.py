@@ -204,11 +204,11 @@ class CNN_Spectral_Pool(object):
         with tf.name_scope('evaluate'):
             pred = tf.argmax(output, axis=1)
             error_num = tf.count_nonzero(pred - input_y, name='error_num')
-            tf.summary.scalar('LeNet_error_num', error_num)
+            tf.summary.scalar('model_error_num', error_num)
         return error_num
 
     def train(self, X_train, y_train, X_val, y_val,
-              batch_size=512, epochs=10, val_test_frq=20,
+              batch_size=512, epochs=10, val_test_frq=1,
               model_name='test'):
         self.loss_vals = []
         self.train_accuracy = []
@@ -268,8 +268,8 @@ class CNN_Spectral_Pool(object):
                     train_acc = 100 - train_eve * 100 / training_batch_y.shape[0]
                     self.train_accuracy.append(train_acc)
                     self.val_accuracy.append(valid_acc)
-                    if verbose:
-                        print('{}/{} loss: {} | training accuracy: {} | validation accuracy : {}%'.format(
+                    if self.verbose:
+                        print('{}/{} loss: {} | training accuracy: {:.3f}% | validation accuracy : {:.3f}%'.format(
                             batch_size * (itr + 1),
                             X_train.shape[0],
                             cur_loss,
@@ -281,10 +281,34 @@ class CNN_Spectral_Pool(object):
 
                     # when achieve the best validation accuracy, we store the model paramters
                     if valid_acc > best_acc:
-                        print('Best validation accuracy! iteration:{} accuracy: {}%'.format(iter_total, valid_acc))
+                        print('\n\tBest validation accuracy! iteration:{} accuracy: {}%\n'.format(iter_total, valid_acc))
                         best_acc = valid_acc
                         saver.save(sess, 'model/{}'.format(model_name))
 
-        print("Traning ends. The best valid accuracy is {}. Model named {}.".format(best_acc, model_name))
+        print("Traning ends. The best valid accuracy is {:.3f}%. Model named: '{}'.".format(best_acc, model_name))
+    
+    def calc_test_accuracy(self, xtest, ytest, model_name='test'):
+        # restore the last saved best model on this name:
+        tf.reset_default_graph()
+        with tf.name_scope('inputs'):
+            xs = tf.placeholder(shape=[None, 32, 32, 3], dtype=tf.float32)
+            ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
 
-
+        output, _ = self.build_graph(xs, ys)
+        eve = self.evaluate(output, ys)
+        
+        init = tf.global_variables_initializer()
+        with tf.Session() as sess:
+            saver = tf.train.Saver()
+            sess.run(init)
+            # restore the pre_trained
+            print("Loading pre-trained model")
+            saver.restore(sess, 'model/{}'.format(model_name))
+            
+            test_eve = sess.run(eve,
+                                feed_dict={
+                                xs: xtest,
+                                ys: ytest})
+            test_acc = 100 - test_eve * 100 / ytest.shape[0]
+            print('Test accuracy: {:.3f}'.format(test_acc))
+            
