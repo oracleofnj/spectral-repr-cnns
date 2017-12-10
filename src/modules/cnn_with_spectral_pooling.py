@@ -40,8 +40,7 @@ class CNN_Spectral_Pool(object):
         self.verbose=verbose
 
         # some internal variables:
-        self.conv_layers = []
-        self.sp_layers = []
+        self.layers = []
 
     def _get_cnn_num_filters(self, m):
         """ Get number of filters for CNN
@@ -76,7 +75,7 @@ class CNN_Spectral_Pool(object):
         ndrop = np.random.uniform(ll, ul)
         return ndrop
     
-    def _print_message(self, name, args):
+    def _print_message(self, name, args=None):
         if not self.verbose:
             return
         if name == 'conv':
@@ -85,14 +84,15 @@ class CNN_Spectral_Pool(object):
         if name == 'sp':
             print('Adding spectral pool layer {0} | Input size: {1} | filter size: ({2},{2})'.format(
                                         args[0], args[1], args[2]))
+        if name == 'softmax':
+            print('Adding final softmax layer')
             
 
     def build_graph(self, input_x, input_y):
         print("Building tf graph...")
 
         # variable alias:
-        conv_layers = self.conv_layers
-        sp_layers = self.sp_layers
+        layers = self.layers
         seed = self.random_seed
 
         # conv layer weights:
@@ -103,7 +103,7 @@ class CNN_Spectral_Pool(object):
             if m == 1:
                 in_x = input_x
             else:
-                in_x = sp_layers[-1].output()
+                in_x = layers[-1].output()
 
             # get number of channels & image size
             # Note: we're working in channel first domain
@@ -116,7 +116,7 @@ class CNN_Spectral_Pool(object):
                                             kernel_shape=self.conv_filter_size,
                                             rand_seed=seed,
                                             m=m)
-            conv_layers.append(conv_layer)
+            layers.append(conv_layer)
             self.conv_layer_weights.append(conv_layer.weight)
 
             # TODO: implement frequency dropout
@@ -126,10 +126,10 @@ class CNN_Spectral_Pool(object):
             self._print_message('sp', (self.M + 1, img_size, filter_size))
             sp_layer = spectral_pool_layer(input_x=in_x,
                                            filter_size=filter_size)
-            sp_layers.append(sp_layer)
+            layers.append(sp_layer)
 
         # Add another conv layer:
-        in_x = sp_layers[-1].output()
+        in_x = layers[-1].output()
         _, _, img_size, nchannel = in_x.get_shape().as_list()
         nfilters = self._get_cnn_num_filters(self.M)
         self._print_message('conv', (self.M + 1, img_size, nchannel, nfilters, 1))
@@ -139,10 +139,10 @@ class CNN_Spectral_Pool(object):
                                    kernel_shape=1,
                                    rand_seed=seed,
                                    m=self.M + 1)
-        conv_layers.append(layer)
+        layers.append(layer)
 
         # Add last conv layer:
-        in_x = conv_layers[-1].output()
+        in_x = layers[-1].output()
         _, _, img_size, nchannel = in_x.get_shape().as_list()
         nfilters = 10
         self._print_message('conv', (self.M + 2, img_size, nchannel, nfilters, 1))
@@ -152,19 +152,18 @@ class CNN_Spectral_Pool(object):
                                    kernel_shape=1,
                                    rand_seed=seed,
                                    m=self.M + 2)
-        conv_layers.append(layer)
+        layers.append(layer)
 
         # update class variables:
-        self.conv_layers = conv_layers
-        self.sp_layers = sp_layers
+        self.layers = layers
 
         # final softmax layer:
         # flatten
-        print('Adding final softmax layer')
-        pool_shape = conv_layers[-1].output().get_shape()
+        self._print_message('softmax')
+        pool_shape = layers[-1].output().get_shape()
         img_vector_length = (pool_shape[1].value * pool_shape[2].value *
                              pool_shape[3].value)
-        flatten = tf.reshape(conv_layers[-1].output(),
+        flatten = tf.reshape(layers[-1].output(),
                              shape=[-1, img_vector_length])
 
         # fc layer
@@ -192,7 +191,7 @@ class CNN_Spectral_Pool(object):
             loss = tf.add(cross_entropy_loss,
                           self.l2_norm * l2_loss,
                           name='loss')
-
+            tf.summary.scalar('SP_loss', loss)
         return fc_layer0.output(), loss
 
     def train_step(self, loss):
@@ -201,83 +200,91 @@ class CNN_Spectral_Pool(object):
 
         return step
 
-    def evaluate(self, pred, input_y):
+    def evaluate(self, output, input_y):
         with tf.name_scope('evaluate'):
-            # pred = tf.argmax(output, axis=1)
+            pred = tf.argmax(output, axis=1)
             error_num = tf.count_nonzero(pred - input_y, name='error_num')
             tf.summary.scalar('LeNet_error_num', error_num)
         return error_num
 
-    def train(self, X_train, y_train, X_val, y_test,
-              batch_size=512, epochs=10, val_test_frq=20):
+    def train(self, X_train, y_train, X_val, y_val,
+              batch_size=512, epochs=10, val_test_frq=20,
+              model_name='test'):
         self.loss_vals = []
         self.train_accuracy = []
+        self.val_accuracy = []
         with tf.name_scope('inputs'):
             xs = tf.placeholder(shape=[None, 32, 32, 3], dtype=tf.float32)
             ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
 
-            output, loss = self.build_graph(xs, ys)
-            # print(type(loss))
-            iters = int(X_train.shape[0] / batch_size)
-            print('number of batches for training: {}'.format(iters))
+        output, loss = self.build_graph(xs, ys)
+        # print(type(loss))
+        iters = int(X_train.shape[0] / batch_size)
+        print('number of batches for training: {}'.format(iters))
 
-            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-            with tf.control_dependencies(update_ops):
-                step = self.train_step(loss)
-            pred = tf.argmax(output, axis=1)
-            eve = self.evaluate(pred, ys)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            step = self.train_step(loss)
+        eve = self.evaluate(output, ys)
 
-            init = tf.global_variables_initializer()
-            with tf.Session() as sess:
-                sess.run(init)
+        init = tf.global_variables_initializer()
 
-                iter_total = 0
-                for epc in range(epochs):
-                    print("epoch {} ".format(epc + 1))
+        with tf.Session() as sess:
+            merge = tf.summary.merge_all()
+            writer = tf.summary.FileWriter("log/{}".format(model_name), sess.graph)
+            saver = tf.train.Saver()
 
-                    for itr in range(iters):
-                        iter_total += 1
-                        print("Training batch {0}".format(itr))
+            sess.run(init)
 
-                        training_batch_x = X_train[itr * batch_size:
-                                                   (1 + itr) * batch_size]
-                        training_batch_y = y_train[itr * batch_size:
-                                                   (1 + itr) * batch_size]
+            iter_total = 0
+            best_acc = 0
+            for epc in range(epochs):
+                print("training epoch {} ".format(epc + 1))
 
-                        _, cur_loss, train_eve = sess.run(
-                                            [step, loss, eve],
-                                            feed_dict={xs: training_batch_x,
-                                                       ys: training_batch_y})
-                        self.loss_vals.append(cur_loss)
-                        self.train_accuracy.append(1 - train_eve / batch_size)
-                    print(self.train_accuracy[-1])
+                for itr in range(iters):
+                    iter_total += 1
+                    # if self.verbose:
+                    #     print("\tTraining batch {0}".format(itr))
 
-                    # if iter_total % 100 == 0:
-                    #     # do validation
-                    #     valid_eve, merge_result = sess.run([eve, merge],
-                    #                                        feed_dict={
-                    #                                        xs: X_val,
-                    #                                        ys: y_val,
-                    #                                        train_phase: False})
-                    #     valid_acc = 100 - valid_eve * 100 / y_val.shape[0]
-                    #     train_acc = 100 - train_eve * 100 / training_batch_y.shape[0]
-                    #     if verbose:
-                    #         print('{}/{} loss: {} | training accuracy: {} | validation accuracy : {}%'.format(
-                    #             batch_size * (itr + 1),
-                    #             X_train.shape[0],
-                    #             cur_loss,
-                    #             train_acc,
-                    #             valid_acc))
+                    training_batch_x = X_train[itr * batch_size:
+                                               (1 + itr) * batch_size]
+                    training_batch_y = y_train[itr * batch_size:
+                                               (1 + itr) * batch_size]
 
-        #                 # save the merge result summary
-        #                 writer.add_summary(merge_result, iter_total)
+                    _, cur_loss, train_eve = sess.run(
+                                        [step, loss, eve],
+                                        feed_dict={xs: training_batch_x,
+                                                   ys: training_batch_y})
+                    self.loss_vals.append(cur_loss)
+                
+                # check validation after certain number of epochs as specified in input
+                if (epc + 1) % val_test_frq == 0:
+                    # do validation
+                    valid_eve, merge_result = sess.run([eve, merge],
+                                                       feed_dict={
+                                                       xs: X_val,
+                                                       ys: y_val})
+                    valid_acc = 100 - valid_eve * 100 / y_val.shape[0]
+                    train_acc = 100 - train_eve * 100 / training_batch_y.shape[0]
+                    self.train_accuracy.append(train_acc)
+                    self.val_accuracy.append(valid_acc)
+                    if verbose:
+                        print('{}/{} loss: {} | training accuracy: {} | validation accuracy : {}%'.format(
+                            batch_size * (itr + 1),
+                            X_train.shape[0],
+                            cur_loss,
+                            train_acc,
+                            valid_acc))
 
-        #                 # when achieve the best validation accuracy, we store the model paramters
-        #                 if valid_acc > best_acc:
-        #                     print('Best validation accuracy! iteration:{} accuracy: {}%'.format(iter_total, valid_acc))
-        #                     best_acc = valid_acc
-        #                     saver.save(sess, 'model/{}'.format(cur_model_name))
+                    # save the merge result summary
+                    writer.add_summary(merge_result, iter_total)
 
-        # print("Traning ends. The best valid accuracy is {}. Model named {}.".format(best_acc, cur_model_name))
+                    # when achieve the best validation accuracy, we store the model paramters
+                    if valid_acc > best_acc:
+                        print('Best validation accuracy! iteration:{} accuracy: {}%'.format(iter_total, valid_acc))
+                        best_acc = valid_acc
+                        saver.save(sess, 'model/{}'.format(model_name))
+
+        print("Traning ends. The best valid accuracy is {}. Model named {}.".format(best_acc, model_name))
 
 

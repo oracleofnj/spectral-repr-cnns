@@ -111,7 +111,7 @@ class fc_layer(object):
 
 
 class spectral_pool_layer(object):
-    def __init__(self, input_x, filter_size=3):
+    def __init__(self, input_x, filter_size=3, m=0):
         """ Perform a single spectral pool operation.
         Args:
             input_x: numpy array representing an image, channels last
@@ -128,32 +128,33 @@ class spectral_pool_layer(object):
         assert filter_size % 2
         # assert only 1 dimension passed for filter size
         assert isinstance(filter_size, int)
+        
+        with tf.variable_scope('spectral_pool_layer_{0}'.format(m)):
+            dim = input_x.get_shape().as_list()[2]
+            im_channel_first = tf.transpose(input_x,
+                                            perm=[0, 3, 1, 2])
 
-        dim = input_x.get_shape().as_list()[2]
-        im_channel_first = tf.transpose(input_x,
-                                        perm=[0, 3, 1, 2])
+            im_fft = tf.fft2d(tf.cast(im_channel_first, tf.complex64))
 
-        im_fft = tf.fft2d(tf.cast(im_channel_first, tf.complex64))
+            # shift the image and crop based on the bounding box:
+            im_fshift = self._tf_fftshift(im_fft, dim)
 
-        # shift the image and crop based on the bounding box:
-        im_fshift = self._tf_fftshift(im_fft, dim)
+            # make channels last as required by crop function
+            im_channel_last = tf.transpose(im_fshift, perm=[0, 2, 3, 1])
 
-        # make channels last as required by crop function
-        im_channel_last = tf.transpose(im_fshift, perm=[0, 2, 3, 1])
+            offset = int(dim / 2) - int(filter_size / 2)
+            im_cropped = tf.image.crop_to_bounding_box(im_channel_last,
+                                                       offset, offset,
+                                                       filter_size, filter_size)
 
-        offset = int(dim / 2) - int(filter_size / 2)
-        im_cropped = tf.image.crop_to_bounding_box(im_channel_last,
-                                                   offset, offset,
-                                                   filter_size, filter_size)
+            # perform ishift and take the inverse fft and throw img part
+            # make channels first for ishift and ifft2d:
+            im_channel_first = tf.transpose(im_cropped, perm=[0, 3, 1, 2])
+            im_ishift = self._tf_ifftshift(im_channel_first, filter_size)
+            im_real = tf.real(tf.ifft2d(im_ishift))
 
-        # perform ishift and take the inverse fft and throw img part
-        # make channels first for ishift and ifft2d:
-        im_channel_first = tf.transpose(im_cropped, perm=[0, 3, 1, 2])
-        im_ishift = self._tf_ifftshift(im_channel_first, filter_size)
-        im_real = tf.real(tf.ifft2d(im_ishift))
-
-        # make channels last as required by CNN
-        im_out = tf.transpose(im_real, perm=[0, 2, 3, 1])
+            # make channels last as required by CNN
+            im_out = tf.transpose(im_real, perm=[0, 2, 3, 1])
 
         # THERE COULD BE A NORMALISING STEP HERE SIMILAR TO BATCH NORM BUT
         # I'M SKIPPING IT HERE
