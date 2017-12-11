@@ -111,14 +111,14 @@ class fc_layer(object):
 
 
 class spectral_pool_layer(object):
-    def __init__(self, input_x, filter_size=3, m=0):
+    def __init__(self, input_x, filter_size=3, freq_dropout=0,
+                 m=0, train_phase=True):
         """ Perform a single spectral pool operation.
         Args:
             input_x: numpy array representing an image, channels last
                 shape: (batch_size, height, width, channel)
             filter_size: int, the final dimension of the filter required
-            return_fft: bool, if True function also returns the raw
-                              fourier transform
+            freq_dropout: int, clip freq number
         Returns:
             An image of similar shape as input after reduction
         NOTE: Filter size is enforced to be odd here. It is required to
@@ -128,6 +128,8 @@ class spectral_pool_layer(object):
         assert filter_size % 2
         # assert only 1 dimension passed for filter size
         assert isinstance(filter_size, int)
+        # assign var:
+        self.freq_dropout = freq_dropout
         
         with tf.variable_scope('spectral_pool_layer_{0}'.format(m)):
             dim = input_x.get_shape().as_list()[2]
@@ -150,7 +152,15 @@ class spectral_pool_layer(object):
             # perform ishift and take the inverse fft and throw img part
             # make channels first for ishift and ifft2d:
             im_channel_first = tf.transpose(im_cropped, perm=[0, 3, 1, 2])
-            im_ishift = self._tf_ifftshift(im_channel_first, filter_size)
+            
+            # apply freq dropout:
+            self.fft_shape = im_channel_first.get_shape().as_list()
+            freq_drop_mat = tf.cond(
+                                    train_phase,
+                                    self._freq_dropout_matrix,
+                                    self._no_dropout_matrix)
+            im_freq_drop = tf.multiply(im_channel_first, freq_drop_mat)
+            im_ishift = self._tf_ifftshift(im_freq_drop, filter_size)
             im_real = tf.real(tf.ifft2d(im_ishift))
 
             # make channels last as required by CNN
@@ -170,6 +180,22 @@ class spectral_pool_layer(object):
 
     def output(self):
         return self.cell_out
+    
+    def _freq_dropout_matrix(self):
+        """Create a matrix to be multiplied to implement freq dropout.
+        Its a 1s matrix with values after freq_dropout made 0"""
+        fft_shape = self.fft_shape
+        freq_dropout = self.freq_dropout
+        out = np.zeros(shape=fft_shape[1:],
+                       dtype=np.complex64)
+        start = int((fft_shape[-1] - freq_dropout)/2)
+        end = freq_dropout + start
+        out[:, start:end, start:end] = 1    
+        return out
+    
+    def _no_dropout_matrix(self):
+        return np.ones(shape=self.fft_shape[1:],
+                       dtype=np.complex64)
 
     def _tfshift(self, matrix, n, axis=1, invert=False):
         """Handler for shifting one axis at a time.
@@ -206,3 +232,16 @@ class spectral_pool_layer(object):
         mat = self._tfshift(matrix, n, 1, invert=True)
         mat2 = self._tfshift(mat, n, 0, invert=True)
         return mat2
+
+
+class global_average_layer(object):
+    def __init__(self, input_x, m=0):
+        """
+        :param input_x: The input of the last convolution layer, channels last
+        """
+        with tf.variable_scope('global_average_{0}'.format(m)):
+            self.cell_out = tf.reduce_mean(input_x,
+                                           axis=(1, 2))
+
+    def output(self):
+        return self.cell_out

@@ -1,4 +1,4 @@
-from .layers import default_conv_layer, spectral_pool_layer, fc_layer
+from .layers import default_conv_layer, spectral_pool_layer, fc_layer, global_average_layer
 import numpy as np
 import tensorflow as tf
 
@@ -87,7 +87,7 @@ class CNN_Spectral_Pool(object):
             print('Adding spectral pool layer {0} | Input size: {1} | filter size: ({2},{2}) | Freq Dropout: {3}'.format(
                                         args[0], args[1], args[2], args[3]))
         if name == 'softmax':
-            print('Adding final softmax layer')
+            print('Adding final softmax layer using global averaging')
         
         if name == 'lr_anneal':
             print('\tLearning rate reduced to {0:.4e} at epoch {1}'.format(self._learning_rate, args))
@@ -150,10 +150,10 @@ class CNN_Spectral_Pool(object):
                                    m=self.M + 1)
         layers.append(layer)
 
-        # Add last conv layer:
+        # Add last conv layer with same filters as number of classes:
         in_x = layers[-1].output()
         _, _, img_size, nchannel = in_x.get_shape().as_list()
-        nfilters = 10
+        nfilters = self.num_output
         self._print_message('conv', (self.M + 2, img_size, nchannel, nfilters, 1))
         layer = default_conv_layer(input_x=in_x,
                                    in_channel=nchannel,
@@ -163,45 +163,34 @@ class CNN_Spectral_Pool(object):
                                    m=self.M + 2)
         layers.append(layer)
 
-        # update class variables:
-        self.layers = layers
-
         # final softmax layer:
         # flatten
         self._print_message('softmax')
-        pool_shape = layers[-1].output().get_shape()
-        img_vector_length = (pool_shape[1].value * pool_shape[2].value *
-                             pool_shape[3].value)
-        flatten = tf.reshape(layers[-1].output(),
-                             shape=[-1, img_vector_length])
-
-        # fc layer
-        fc_layer0 = fc_layer(
-                            input_x=flatten,
-                            in_size=img_vector_length,
-                            out_size=self.num_output,
-                            rand_seed=seed,
-                            activation_function=None,
-                            m=0)
-        fc_w = [fc_layer0.weight]
+        global_average_0 = global_average_layer(layers[-1].output(),
+                                                m=0)
+        
+        layers.append(global_average_0)
+        
+        # update class variables:
+        self.layers = layers
 
         # define loss:
         with tf.name_scope("loss"):
-            l2_loss = tf.reduce_sum([tf.norm(w) for w in fc_w])
-            l2_loss += tf.reduce_sum([tf.norm(w, axis=[-2, -1])
+            # l2_loss = tf.reduce_sum([tf.norm(w) for w in fc_w])
+            l2_loss = tf.reduce_sum([tf.norm(w, axis=[-2, -1])
                                       for w in self.conv_layer_weights])
 
-            label = tf.one_hot(input_y, self.num_output)
+            # label = tf.one_hot(input_y, self.num_output)
             cross_entropy_loss = tf.reduce_mean(
-                tf.nn.softmax_cross_entropy_with_logits(
-                                                labels=label,
-                                                logits=fc_layer0.output()),
+                tf.nn.sparse_softmax_cross_entropy_with_logits(
+                                                labels=input_y,
+                                                logits=global_average_0.output()),
                 name='cross_entropy')
             loss = tf.add(cross_entropy_loss,
                           self.l2_norm * l2_loss,
                           name='loss')
             tf.summary.scalar('SP_loss', loss)
-        return fc_layer0.output(), loss
+        return global_average_0.output(), loss
 
     def train_step(self, loss):
         with tf.name_scope('train_step'):
