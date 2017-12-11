@@ -86,6 +86,9 @@ class CNN_Spectral_Pool(object):
                                         args[0], args[1], args[2]))
         if name == 'softmax':
             print('Adding final softmax layer')
+        
+        if name == 'lr_anneal':
+            print('\tLearning rate reduced to {0:.4e} at epoch {1}'.format(self._learning_rate, args))
             
 
     def build_graph(self, input_x, input_y):
@@ -196,7 +199,7 @@ class CNN_Spectral_Pool(object):
 
     def train_step(self, loss):
         with tf.name_scope('train_step'):
-            step = tf.train.AdamOptimizer(self.learning_rate).minimize(loss)
+            step = tf.train.AdamOptimizer(self._learning_rate).minimize(loss)
 
         return step
 
@@ -213,6 +216,8 @@ class CNN_Spectral_Pool(object):
         self.loss_vals = []
         self.train_accuracy = []
         self.val_accuracy = []
+        # defining a copy of learning rate to anneal if by 10% on specified epochs:
+        self._learning_rate = self.learning_rate
         with tf.name_scope('inputs'):
             xs = tf.placeholder(shape=[None, 32, 32, 3], dtype=tf.float32)
             ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
@@ -240,6 +245,11 @@ class CNN_Spectral_Pool(object):
             best_acc = 0
             for epc in range(epochs):
                 print("training epoch {} ".format(epc + 1))
+                
+                # anneal learning rate:
+                if (epc + 1) in self.lr_reduction_epochs:
+                    self._learning_rate = self._learning_rate * self.lr_reduction_factor
+                    self._print_message('lr_anneal', epc + 1)
 
                 for itr in range(iters):
                     iter_total += 1
