@@ -93,7 +93,7 @@ class CNN_Spectral_Pool(object):
             print('\tLearning rate reduced to {0:.4e} at epoch {1}'.format(self._learning_rate, args))
             
 
-    def build_graph(self, input_x, input_y):
+    def build_graph(self, input_x, input_y, train_phase):
         print("Building tf graph...")
 
         # variable alias:
@@ -133,7 +133,8 @@ class CNN_Spectral_Pool(object):
             sp_layer = spectral_pool_layer(input_x=in_x,
                                            filter_size=filter_size,
                                            freq_dropout=freq_dropout,
-                                           m=m)
+                                           m=m,
+                                           train_phase=train_phase)
             layers.append(sp_layer)
 
         # Add another conv layer:
@@ -226,8 +227,9 @@ class CNN_Spectral_Pool(object):
         with tf.name_scope('inputs'):
             xs = tf.placeholder(shape=[None, 32, 32, 3], dtype=tf.float32)
             ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
+            train_phase = tf.placeholder(shape=(), dtype=tf.bool)
 
-        output, loss = self.build_graph(xs, ys)
+        output, loss = self.build_graph(xs, ys, train_phase)
         # print(type(loss))
         iters = int(X_train.shape[0] / batch_size)
         print('number of batches for training: {}'.format(iters))
@@ -269,7 +271,8 @@ class CNN_Spectral_Pool(object):
                     _, cur_loss, train_eve = sess.run(
                                         [step, loss, eve],
                                         feed_dict={xs: training_batch_x,
-                                                   ys: training_batch_y})
+                                                   ys: training_batch_y,
+                                                   train_phase: True})
                     self.loss_vals.append(cur_loss)
                 
                 # check validation after certain number of epochs as specified in input
@@ -278,7 +281,8 @@ class CNN_Spectral_Pool(object):
                     valid_eve, merge_result = sess.run([eve, merge],
                                                        feed_dict={
                                                        xs: X_val,
-                                                       ys: y_val})
+                                                       ys: y_val,
+                                                       train_phase: False})
                     valid_acc = 100 - valid_eve * 100 / y_val.shape[0]
                     train_acc = 100 - train_eve * 100 / training_batch_y.shape[0]
                     self.train_accuracy.append(train_acc)
@@ -308,8 +312,9 @@ class CNN_Spectral_Pool(object):
         with tf.name_scope('inputs'):
             xs = tf.placeholder(shape=[None, 32, 32, 3], dtype=tf.float32)
             ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
+            train_phase = tf.placeholder(shape=(), dtype=tf.bool)
 
-        output, _ = self.build_graph(xs, ys)
+        output, _ = self.build_graph(xs, ys, train_phase)
         eve = self.evaluate(output, ys)
         
         init = tf.global_variables_initializer()
@@ -323,7 +328,8 @@ class CNN_Spectral_Pool(object):
             test_eve = sess.run(eve,
                                 feed_dict={
                                 xs: xtest,
-                                ys: ytest})
+                                ys: ytest,
+                                train_phase: False})
             test_acc = 100 - test_eve * 100 / ytest.shape[0]
             print('Test accuracy: {:.3f}'.format(test_acc))
             
