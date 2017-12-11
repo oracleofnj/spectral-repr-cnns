@@ -66,13 +66,15 @@ class CNN_Spectral_Pool(object):
         """Get the number of dimensions to make 0 in the
         frequency domain.
         Args:
-            n: current size of spectral filter
+            n: size of image in layer
             m: current layer index
         """
         c = self.alpha + (m / self.M) * (self.beta - self.alpha)
         ll = int(c * n)
-        ul = m + 1
-        ndrop = np.random.uniform(ll, ul)
+        ndrop = np.random.random_integers(ll, n)
+        # make sure it is odd:
+        if ndrop % 2:
+            ndrop -= 1
         return ndrop
     
     def _print_message(self, name, args=None):
@@ -82,8 +84,8 @@ class CNN_Spectral_Pool(object):
             print('Adding conv layer {0} | Input size: {1} | Input channels: {2} | #filters: {3} | filter size: {4}'.format(
                                         args[0], args[1], args[2], args[3], args[4]))
         if name == 'sp':
-            print('Adding spectral pool layer {0} | Input size: {1} | filter size: ({2},{2})'.format(
-                                        args[0], args[1], args[2]))
+            print('Adding spectral pool layer {0} | Input size: {1} | filter size: ({2},{2}) | Freq Dropout: {3}'.format(
+                                        args[0], args[1], args[2], args[3]))
         if name == 'softmax':
             print('Adding final softmax layer')
         
@@ -126,9 +128,12 @@ class CNN_Spectral_Pool(object):
             in_x = conv_layer.output()
             _, _, img_size, _ = in_x.get_shape().as_list()
             filter_size = self._get_sp_dim(img_size)
-            self._print_message('sp', (self.M + 1, img_size, filter_size))
+            freq_dropout = self._get_frq_dropout(img_size, m)
+            self._print_message('sp', (m, img_size, filter_size, freq_dropout))
             sp_layer = spectral_pool_layer(input_x=in_x,
-                                           filter_size=filter_size)
+                                           filter_size=filter_size,
+                                           freq_dropout=freq_dropout,
+                                           m=m)
             layers.append(sp_layer)
 
         # Add another conv layer:
