@@ -134,7 +134,7 @@ class spectral_pool_layer(object):
 
         with tf.variable_scope('spectral_pool_layer_{0}'.format(m)):
             dim = input_x.get_shape().as_list()[2]
-            im_fft = tf.fft2d(tf.cast(im_channel_first, tf.complex64))
+            im_fft = tf.fft2d(tf.cast(input_x, tf.complex64))
             #
             # # shift the image and crop based on the bounding box:
             # im_fshift = self._tf_fftshift(im_fft, dim)
