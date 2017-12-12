@@ -205,3 +205,60 @@ class spectral_pool_layer(object):
         mat = self._tfshift(matrix, n, 1, invert=True)
         mat2 = self._tfshift(mat, n, 0, invert=True)
         return mat2
+
+class spectral_conv_layer(object):
+    def __init__(self, input_x, in_channel, out_channel,
+                 kernel_shape, random_seed, m=0):
+        """
+        NOTE: Image should be CHANNEL LAST
+        :param input_x: Should be a 4D array like:
+                            (batch_num, channel_num, img_len, img_len)
+        :param in_channel: The number of channels
+        :param out_channel: number of filters required
+        :param kernel_shape: kernel size
+        :param random_seed: random seed
+        :param index: The layer index used for naming
+        """
+        assert len(input_x.shape) == 4
+        assert input_x.shape[1] == input_x.shape[2]
+        assert input_x.shape[3] == in_channel
+
+        with tf.variable_scope('spec_conv_layer_{0}'.format(m)):
+            with tf.name_scope('spec_conv_kernel'):
+                w_shape = [kernel_shape, kernel_shape, in_channel, out_channel]
+                spatial_weight_init = tf.get_variable(
+                    name='spatial_weight_init_{0}'.format(m),
+                    shape=w_shape,
+                    initializer=tf.glorot_uniform_initializer(seed=random_seed))
+
+                spectral_weight_vals = tf.fft2d(tf.cast(spatial_weight_init.initialized_value(), tf.complex64))
+                spectral_weight = tf.get_variable(
+                    name='spectral_weight_{0}'.format(m),
+                    initializer=spectral_weight_vals)
+                self.weight = spectral_weight
+
+            with tf.variable_scope('conv_bias'):
+                b_shape = [out_channel]
+                bias = tf.get_variable(
+                    name='conv_bias_{0}'.format(m),
+                    shape=b_shape,
+                    initializer=tf.glorot_uniform_initializer(seed=random_seed))
+                self.bias = bias
+
+            # strides [1, x_movement, y_movement, 1]
+            spatial_weight = tf.cast(tf.ifft2d(spectral_weight), tf.float32, name='spatial_weight_{0}'.format(m))
+            conv_out = tf.nn.conv2d(input_x, spatial_weight,
+                                    strides=[1, 1, 1, 1],
+                                    padding="SAME")
+            cell_out = tf.nn.relu(conv_out + bias)
+
+            self.cell_out = cell_out
+
+            print(spatial_weight)
+            print(spectral_weight)
+
+            # tf.summary.histogram('conv_layer/{}/kernel'.format(m), weight)
+            # tf.summary.histogram('conv_layer/{}/bias'.format(m), bias)
+
+    def output(self):
+        return self.cell_out

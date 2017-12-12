@@ -1,4 +1,5 @@
 from .cnn_with_spectral_pooling import CNN_Spectral_Pool
+from .cnn_with_spectral_parameterization import CNN_Spectral_Param
 import tensorflow as tf
 import numpy as np
 
