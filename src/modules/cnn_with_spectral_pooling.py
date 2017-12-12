@@ -145,20 +145,20 @@ class CNN_Spectral_Pool(object):
             layers.append(sp_layer)
 
         # Add another conv layer:
-        # in_x = layers[-1].output()
-        # _, _, img_size, nchannel = in_x.get_shape().as_list()
-        # nfilters = self._get_cnn_num_filters(self.M)
-        # self._print_message(
-        #     'conv',
-        #     (self.M + 1, img_size, nchannel, nfilters, 1)
-        # )
-        # layer = default_conv_layer(input_x=in_x,
-        #                            in_channel=nchannel,
-        #                            out_channel=nfilters,
-        #                            kernel_shape=1,
-        #                            rand_seed=seed,
-        #                            m=self.M + 1)
-        # layers.append(layer)
+        in_x = layers[-1].output()
+        _, nchannel, img_size, _ = in_x.get_shape().as_list()
+        nfilters = self._get_cnn_num_filters(self.M)
+        self._print_message(
+            'conv',
+            (self.M + 1, img_size, nchannel, nfilters, 1)
+        )
+        layer = default_conv_layer(input_x=in_x,
+                                   in_channel=nchannel,
+                                   out_channel=nfilters,
+                                   kernel_shape=1,
+                                   rand_seed=seed,
+                                   m=self.M + 1)
+        layers.append(layer)
 
         # Add last conv layer with same filters as number of classes:
         # in_x = layers[-1].output()
