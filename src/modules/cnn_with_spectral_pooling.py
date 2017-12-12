@@ -165,7 +165,7 @@ class CNN_Spectral_Pool(object):
 
         # Add last conv layer with same filters as number of classes:
         in_x = layers[-1].output()
-        _, _, img_size, nchannel = in_x.get_shape().as_list()
+        _, nchannel, img_size, _ = in_x.get_shape().as_list()
         nfilters = self.num_output
         self._print_message(
             'conv',
