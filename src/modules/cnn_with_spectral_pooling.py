@@ -164,20 +164,20 @@ class CNN_Spectral_Pool(object):
             layers.append(layer)
 
         # Add last conv layer with same filters as number of classes:
-        # in_x = layers[-1].output()
-        # _, _, img_size, nchannel = in_x.get_shape().as_list()
-        # nfilters = self.num_output
-        # self._print_message(
-        #     'conv',
-        #     (self.M + 2, img_size, nchannel, nfilters, 1)
-        # )
-        # layer = default_conv_layer(input_x=in_x,
-        #                            in_channel=nchannel,
-        #                            out_channel=nfilters,
-        #                            kernel_shape=1,
-        #                            rand_seed=seed,
-        #                            m=self.M + 2)
-        # layers.append(layer)
+        in_x = layers[-1].output()
+        _, _, img_size, nchannel = in_x.get_shape().as_list()
+        nfilters = self.num_output
+        self._print_message(
+            'conv',
+            (self.M + 2, img_size, nchannel, nfilters, 1)
+        )
+        layer = default_conv_layer(input_x=in_x,
+                                   in_channel=nchannel,
+                                   out_channel=nfilters,
+                                   kernel_shape=1,
+                                   rand_seed=seed,
+                                   m=self.M + 2)
+        layers.append(layer)
         #
         # final softmax layer:
         # flatten
