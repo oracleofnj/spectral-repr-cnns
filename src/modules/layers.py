@@ -1,3 +1,4 @@
+from .spectral_pool import _common_spectral_pool
 import numpy as np
 import tensorflow as tf
 
@@ -133,37 +134,9 @@ class spectral_pool_layer(object):
         self.freq_dropout = freq_dropout
 
         with tf.variable_scope('spectral_pool_layer_{0}'.format(m)):
-            dim = input_x.get_shape().as_list()[2]
             im_fft = tf.fft2d(tf.cast(input_x, tf.complex64))
-            #
-            # # shift the image and crop based on the bounding box:
-            # im_fshift = self._tf_fftshift(im_fft, dim)
-            #
-            # # make channels last as required by crop function
-            # im_channel_last = tf.transpose(im_fshift, perm=[0, 2, 3, 1])
-            #
-            # offset = int(dim / 2) - int(filter_size / 2)
-            # im_cropped = tf.image.crop_to_bounding_box(im_channel_last,
-            #                                            offset, offset,
-            #                                            filter_size, filter_size)
-            #
-            # # perform ishift and take the inverse fft and throw img part
-            # # make channels first for ishift and ifft2d:
-            # im_channel_first = tf.transpose(im_cropped, perm=[0, 3, 1, 2])
-            #
-            # # apply freq dropout:
-            # self.fft_shape = im_channel_first.get_shape().as_list()
-            # freq_drop_mat = tf.ones_like(im_channel_first)
-            # # (shape=self.fft_shape[1:],
-            # #                         dtype=np.complex64)
-            # # freq_drop_mat = tf.cond(
-            # #                         train_phase,
-            # #                         self._freq_dropout_matrix,
-            # #                         self._no_dropout_matrix)
-            # im_freq_drop = tf.multiply(im_channel_first, freq_drop_mat)
-            # im_ishift = self._tf_ifftshift(im_freq_drop, filter_size)
-            # im_real = tf.real(tf.ifft2d(im_ishift))
-            im_out = tf.real(tf.ifft2d(im_fft))
+            im_transformed = _common_spectral_pool(im_fft, filter_size)
+            im_out = tf.real(tf.ifft2d(im_transformed))
 
         # THERE COULD BE A NORMALISING STEP HERE SIMILAR TO BATCH NORM BUT
         # I'M SKIPPING IT HERE
