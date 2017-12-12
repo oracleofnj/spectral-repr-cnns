@@ -69,6 +69,44 @@ class default_conv_layer(object):
         return self.cell_out
 
 
+class hw_conv_layer(object):
+    """ Homework layer"""
+    def __init__(self, input_x, in_channel, out_channel, kernel_shape, rand_seed, index=0):
+        """
+        :param input_x: The input of the conv layer. Should be a 4D array like (batch_num, img_len, img_len, channel_num)
+        :param in_channel: The 4-th demension (channel number) of input matrix. For example, in_channel=3 means the input contains 3 channels.
+        :param out_channel: The 4-th demension (channel number) of output matrix. For example, out_channel=5 means the output contains 5 channels (feature maps).
+        :param kernel_shape: the shape of the kernel. For example, kernal_shape = 3 means you have a 3*3 kernel.
+        :param rand_seed: An integer that presents the random seed used to generate the initial parameter value.
+        :param index: The index of the layer. It is used for naming only.
+        """
+        assert len(input_x.shape) == 4 and input_x.shape[1] == input_x.shape[2] and input_x.shape[3] == in_channel
+
+        with tf.variable_scope('conv_layer_%d' % index):
+            with tf.name_scope('conv_kernel'):
+                w_shape = [kernel_shape, kernel_shape, in_channel, out_channel]
+                weight = tf.get_variable(name='conv_kernel_%d' % index, shape=w_shape,
+                                         initializer=tf.glorot_uniform_initializer(seed=rand_seed))
+                self.weight = weight
+
+            with tf.variable_scope('conv_bias'):
+                b_shape = [out_channel]
+                bias = tf.get_variable(name='conv_bias_%d' % index, shape=b_shape,
+                                       initializer=tf.glorot_uniform_initializer(seed=rand_seed))
+                self.bias = bias
+
+            # strides [1, x_movement, y_movement, 1]
+            conv_out = tf.nn.conv2d(input_x, weight, strides=[1, 1, 1, 1], padding="SAME")
+            cell_out = tf.nn.relu(conv_out + bias)
+
+            self.cell_out = cell_out
+
+            tf.summary.histogram('conv_layer/{}/kernel'.format(index), weight)
+            tf.summary.histogram('conv_layer/{}/bias'.format(index), bias)
+
+    def output(self):
+        return self.cell_out
+
 class fc_layer(object):
     def __init__(self, input_x, in_size, out_size, rand_seed,
                  activation_function=None, m=0):
@@ -130,7 +168,7 @@ class spectral_pool_layer(object):
         assert isinstance(filter_size, int)
         # assign var:
         self.freq_dropout = freq_dropout
-        
+
         with tf.variable_scope('spectral_pool_layer_{0}'.format(m)):
             dim = input_x.get_shape().as_list()[2]
             im_channel_first = tf.transpose(input_x,
@@ -152,7 +190,7 @@ class spectral_pool_layer(object):
             # perform ishift and take the inverse fft and throw img part
             # make channels first for ishift and ifft2d:
             im_channel_first = tf.transpose(im_cropped, perm=[0, 3, 1, 2])
-            
+
             # apply freq dropout:
             self.fft_shape = im_channel_first.get_shape().as_list()
             freq_drop_mat = tf.cond(
@@ -180,7 +218,7 @@ class spectral_pool_layer(object):
 
     def output(self):
         return self.cell_out
-    
+
     def _freq_dropout_matrix(self):
         """Create a matrix to be multiplied to implement freq dropout.
         Its a 1s matrix with values after freq_dropout made 0"""
@@ -190,9 +228,9 @@ class spectral_pool_layer(object):
                        dtype=np.complex64)
         start = int((fft_shape[-1] - freq_dropout)/2)
         end = freq_dropout + start
-        out[:, start:end, start:end] = 1    
+        out[:, start:end, start:end] = 1
         return out
-    
+
     def _no_dropout_matrix(self):
         return np.ones(shape=self.fft_shape[1:],
                        dtype=np.complex64)

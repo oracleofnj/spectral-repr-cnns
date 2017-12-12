@@ -108,3 +108,5 @@ ENV/
 
 # no data:
 *cifar*
+log/
+model/

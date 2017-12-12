@@ -1,4 +1,5 @@
-from .layers import default_conv_layer, spectral_pool_layer, fc_layer, global_average_layer
+from .layers import default_conv_layer, spectral_pool_layer
+from .layers import fc_layer, global_average_layer, hw_conv_layer
 import numpy as np
 import tensorflow as tf
 
@@ -14,7 +15,7 @@ class CNN_Spectral_Pool(object):
                  weight_decay=1e-3,
                  momentum=0.95,
                  learning_rate=0.0088,
-                 l2_norm=0.01,
+                 l2_norm=0.0001,
                  lr_reduction_epochs=[100, 140],
                  lr_reduction_factor=0.1,
                  max_num_filters=288,
@@ -22,6 +23,9 @@ class CNN_Spectral_Pool(object):
                  verbose=False):
         """Initialize model, defaults are set as per the optimum
         hyperparameters stated in the journal.
+
+        params:
+        M = total number of (convolution + spectral-pool) layer-pairs
         """
         self.num_output = num_output
         self.M = M
@@ -37,7 +41,7 @@ class CNN_Spectral_Pool(object):
         self.lr_reduction_factor = lr_reduction_factor
         self.max_num_filters = max_num_filters
         self.random_seed = random_seed
-        self.verbose=verbose
+        self.verbose = verbose
 
         # some internal variables:
         self.layers = []
@@ -48,7 +52,7 @@ class CNN_Spectral_Pool(object):
             m: current layer number
         """
         return min(self.max_num_filters,
-                   96 + 32 * m)
+                   96 + 320 * m)
 
     def _get_sp_dim(self, n):
         """Get filter size for current layer
@@ -69,14 +73,15 @@ class CNN_Spectral_Pool(object):
             n: size of image in layer
             m: current layer index
         """
-        c = self.alpha + (m / self.M) * (self.beta - self.alpha)
-        ll = int(c * n)
-        ndrop = np.random.random_integers(ll, n)
-        # make sure it is odd:
-        if ndrop % 2:
-            ndrop -= 1
-        return ndrop
-    
+        return n
+        # c = self.alpha + (m / self.M) * (self.beta - self.alpha)
+        # ll = int(c * n)
+        # ndrop = np.random.random_integers(ll, n)
+        # # make sure it is odd:
+        # if ndrop % 2:
+        #     ndrop -= 1
+        # return ndrop
+
     def _print_message(self, name, args=None):
         if not self.verbose:
             return
@@ -88,10 +93,10 @@ class CNN_Spectral_Pool(object):
                                         args[0], args[1], args[2], args[3]))
         if name == 'softmax':
             print('Adding final softmax layer using global averaging')
-        
+
         if name == 'lr_anneal':
             print('\tLearning rate reduced to {0:.4e} at epoch {1}'.format(self._learning_rate, args))
-            
+
 
     def build_graph(self, input_x, input_y, train_phase):
         print("Building tf graph...")
@@ -114,13 +119,17 @@ class CNN_Spectral_Pool(object):
             # Note: we're working in channel first domain
             _, _, img_size, nchannel = in_x.get_shape().as_list()
             nfilters = self._get_cnn_num_filters(m)
-            self._print_message('conv', (m, img_size, nchannel, nfilters, self.conv_filter_size))
-            conv_layer = default_conv_layer(input_x=in_x,
-                                            in_channel=nchannel,
-                                            out_channel=nfilters,
-                                            kernel_shape=self.conv_filter_size,
-                                            rand_seed=seed,
-                                            m=m)
+            self._print_message(
+                'conv',
+                (m, img_size, nchannel, nfilters, self.conv_filter_size)
+            )
+            conv_layer = hw_conv_layer(input_x=in_x,
+                                       in_channel=nchannel,
+                                       out_channel=nfilters,
+                                       kernel_shape=self.conv_filter_size,
+                                       rand_seed=seed,
+                                       index=m)
+                                       # m=m)
             layers.append(conv_layer)
             self.conv_layer_weights.append(conv_layer.weight)
 
@@ -138,39 +147,59 @@ class CNN_Spectral_Pool(object):
             layers.append(sp_layer)
 
         # Add another conv layer:
-        in_x = layers[-1].output()
-        _, _, img_size, nchannel = in_x.get_shape().as_list()
-        nfilters = self._get_cnn_num_filters(self.M)
-        self._print_message('conv', (self.M + 1, img_size, nchannel, nfilters, 1))
-        layer = default_conv_layer(input_x=in_x,
-                                   in_channel=nchannel,
-                                   out_channel=nfilters,
-                                   kernel_shape=1,
-                                   rand_seed=seed,
-                                   m=self.M + 1)
-        layers.append(layer)
+        # in_x = layers[-1].output()
+        # _, _, img_size, nchannel = in_x.get_shape().as_list()
+        # nfilters = self._get_cnn_num_filters(self.M)
+        # self._print_message(
+        #     'conv',
+        #     (self.M + 1, img_size, nchannel, nfilters, 1)
+        # )
+        # layer = default_conv_layer(input_x=in_x,
+        #                            in_channel=nchannel,
+        #                            out_channel=nfilters,
+        #                            kernel_shape=1,
+        #                            rand_seed=seed,
+        #                            m=self.M + 1)
+        # layers.append(layer)
 
         # Add last conv layer with same filters as number of classes:
-        in_x = layers[-1].output()
-        _, _, img_size, nchannel = in_x.get_shape().as_list()
-        nfilters = self.num_output
-        self._print_message('conv', (self.M + 2, img_size, nchannel, nfilters, 1))
-        layer = default_conv_layer(input_x=in_x,
-                                   in_channel=nchannel,
-                                   out_channel=nfilters,
-                                   kernel_shape=1,
-                                   rand_seed=seed,
-                                   m=self.M + 2)
-        layers.append(layer)
-
+        # in_x = layers[-1].output()
+        # _, _, img_size, nchannel = in_x.get_shape().as_list()
+        # nfilters = self.num_output
+        # self._print_message(
+        #     'conv',
+        #     (self.M + 2, img_size, nchannel, nfilters, 1)
+        # )
+        # layer = default_conv_layer(input_x=in_x,
+        #                            in_channel=nchannel,
+        #                            out_channel=nfilters,
+        #                            kernel_shape=1,
+        #                            rand_seed=seed,
+        #                            m=self.M + 2)
+        # layers.append(layer)
+        #
         # final softmax layer:
         # flatten
-        self._print_message('softmax')
-        global_average_0 = global_average_layer(layers[-1].output(),
-                                                m=0)
-        
-        layers.append(global_average_0)
-        
+        layer = layers[-1]
+        pool_shape = layer.output().get_shape()
+        img_vector_length = pool_shape[1].value * \
+            pool_shape[2].value * \
+            pool_shape[3].value
+        flatten = tf.reshape(layer.output(), shape=[-1, img_vector_length])
+
+        fc_layer_0 = fc_layer(input_x=flatten,
+                              in_size=img_vector_length,
+                              out_size=10,
+                              rand_seed=seed,
+                              activation_function=None)
+        layers.append(fc_layer_0)
+
+        # self._print_message('softmax')
+        # global_average_0 = global_average_layer(layers[-1].output(),
+        #                                         m=0)
+        #
+        # layers.append(global_average_0)
+
         # update class variables:
         self.layers = layers
 
@@ -178,19 +207,21 @@ class CNN_Spectral_Pool(object):
         with tf.name_scope("loss"):
             # l2_loss = tf.reduce_sum([tf.norm(w) for w in fc_w])
             l2_loss = tf.reduce_sum([tf.norm(w, axis=[-2, -1])
-                                      for w in self.conv_layer_weights])
+                                     for w in self.conv_layer_weights])
 
-            # label = tf.one_hot(input_y, self.num_output)
+            label = tf.one_hot(input_y, self.num_output)
             cross_entropy_loss = tf.reduce_mean(
-                tf.nn.sparse_softmax_cross_entropy_with_logits(
-                                                labels=input_y,
-                                                logits=global_average_0.output()),
+                tf.nn.softmax_cross_entropy_with_logits(
+                                                labels=label,
+                                                # logits=global_average_0.output()),
+                                                logits=fc_layer_0.output()),
                 name='cross_entropy')
             loss = tf.add(cross_entropy_loss,
                           self.l2_norm * l2_loss,
                           name='loss')
             tf.summary.scalar('SP_loss', loss)
-        return global_average_0.output(), loss
+        # return global_average_0.output(), loss
+        return fc_layer_0.output(), loss
 
     def train_step(self, loss):
         with tf.name_scope('train_step'):
@@ -241,7 +272,7 @@ class CNN_Spectral_Pool(object):
             best_acc = 0
             for epc in range(epochs):
                 print("training epoch {} ".format(epc + 1))
-                
+
                 # anneal learning rate:
                 if (epc + 1) in self.lr_reduction_epochs:
                     self._learning_rate = self._learning_rate * self.lr_reduction_factor
@@ -263,7 +294,7 @@ class CNN_Spectral_Pool(object):
                                                    ys: training_batch_y,
                                                    train_phase: True})
                     self.loss_vals.append(cur_loss)
-                
+
                 # check validation after certain number of epochs as specified in input
                 if (epc + 1) % val_test_frq == 0:
                     # do validation
@@ -294,7 +325,7 @@ class CNN_Spectral_Pool(object):
                         saver.save(sess, 'model/{}'.format(model_name))
 
         print("Traning ends. The best valid accuracy is {:.3f}%. Model named: '{}'.".format(best_acc, model_name))
-    
+
     def calc_test_accuracy(self, xtest, ytest, model_name='test'):
         # restore the last saved best model on this name:
         tf.reset_default_graph()
@@ -305,7 +336,7 @@ class CNN_Spectral_Pool(object):
 
         output, _ = self.build_graph(xs, ys, train_phase)
         eve = self.evaluate(output, ys)
-        
+
         init = tf.global_variables_initializer()
         with tf.Session() as sess:
             saver = tf.train.Saver()
@@ -313,7 +344,7 @@ class CNN_Spectral_Pool(object):
             # restore the pre_trained
             print("Loading pre-trained model")
             saver.restore(sess, 'model/{}'.format(model_name))
-            
+
             test_eve = sess.run(eve,
                                 feed_dict={
                                 xs: xtest,
@@ -321,4 +352,3 @@ class CNN_Spectral_Pool(object):
                                 train_phase: False})
             test_acc = 100 - test_eve * 100 / ytest.shape[0]
             print('Test accuracy: {:.3f}'.format(test_acc))
-            
