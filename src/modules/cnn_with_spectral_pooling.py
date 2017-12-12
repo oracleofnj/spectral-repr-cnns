@@ -215,14 +215,14 @@ class CNN_Spectral_Pool(object):
                 tf.nn.softmax_cross_entropy_with_logits(
                                                 labels=label,
                                                 # logits=global_average_0.output()),
-                                                logits=fc_layer_0.output()),
+                                                logits=layers[-1].output()),
                 name='cross_entropy')
             loss = tf.add(cross_entropy_loss,
                           self.l2_norm * l2_loss,
                           name='loss')
             tf.summary.scalar('SP_loss', loss)
         # return global_average_0.output(), loss
-        return fc_layer_0.output(), loss
+        return layers[-1].output(), loss
 
     def train_step(self, loss):
         with tf.name_scope('train_step'):
