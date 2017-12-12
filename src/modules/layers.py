@@ -59,7 +59,11 @@ class default_conv_layer(object):
                                     strides=[1, 1, 1, 1],
                                     padding="SAME",
                                     data_format="NCHW")
-            cell_out = tf.nn.bias_add(conv_out, self.bias, data_format='NCHW')
+            cell_biased = tf.nn.bias_add(
+                conv_out,
+                self.bias, data_format='NCHW'
+            )
+            cell_out = tf.nn.relu(cell_biased)
 
             self.cell_out = cell_out
 
