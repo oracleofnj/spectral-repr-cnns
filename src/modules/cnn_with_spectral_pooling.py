@@ -96,8 +96,10 @@ class CNN_Spectral_Pool(object):
         if name == 'lr_anneal':
             print('\tLearning rate reduced to {0:.4e} at epoch {1}'.format(self._learning_rate, args))
 
-
-    def build_graph(self, input_x, input_y, train_phase):
+    def build_graph(
+        self, input_x, input_y, train_phase,
+        extra_conv_layer=True,
+    ):
         print("Building tf graph...")
 
         # variable alias:
@@ -145,20 +147,21 @@ class CNN_Spectral_Pool(object):
             layers.append(sp_layer)
 
         # Add another conv layer:
-        in_x = layers[-1].output()
-        _, nchannel, img_size, _ = in_x.get_shape().as_list()
-        nfilters = self._get_cnn_num_filters(self.M)
-        self._print_message(
-            'conv',
-            (self.M + 1, img_size, nchannel, nfilters, 1)
-        )
-        layer = default_conv_layer(input_x=in_x,
-                                   in_channel=nchannel,
-                                   out_channel=nfilters,
-                                   kernel_shape=1,
-                                   rand_seed=seed,
-                                   m=self.M + 1)
-        layers.append(layer)
+        if extra_conv_layer:
+            in_x = layers[-1].output()
+            _, nchannel, img_size, _ = in_x.get_shape().as_list()
+            nfilters = self._get_cnn_num_filters(self.M)
+            self._print_message(
+                'conv',
+                (self.M + 1, img_size, nchannel, nfilters, 1)
+            )
+            layer = default_conv_layer(input_x=in_x,
+                                       in_channel=nchannel,
+                                       out_channel=nfilters,
+                                       kernel_shape=1,
+                                       rand_seed=seed,
+                                       m=self.M + 1)
+            layers.append(layer)
 
         # Add last conv layer with same filters as number of classes:
         # in_x = layers[-1].output()
@@ -236,6 +239,7 @@ class CNN_Spectral_Pool(object):
 
     def train(self, X_train, y_train, X_val, y_val,
               batch_size=512, epochs=10, val_test_frq=1,
+              extra_conv_layer=True,
               model_name='test'):
         self.loss_vals = []
         self.train_accuracy = []
@@ -247,7 +251,7 @@ class CNN_Spectral_Pool(object):
             ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
             train_phase = tf.placeholder(shape=(), dtype=tf.bool)
 
-        output, loss = self.build_graph(xs, ys, train_phase)
+        output, loss = self.build_graph(xs, ys, train_phase, extra_conv_layer)
         # print(type(loss))
         iters = int(X_train.shape[0] / batch_size)
         print('number of batches for training: {}'.format(iters))
@@ -328,7 +332,7 @@ class CNN_Spectral_Pool(object):
         # restore the last saved best model on this name:
         tf.reset_default_graph()
         with tf.name_scope('inputs'):
-            xs = tf.placeholder(shape=[None, 32, 32, 3], dtype=tf.float32)
+            xs = tf.placeholder(shape=[None, 3, 32, 32], dtype=tf.float32)
             ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
             train_phase = tf.placeholder(shape=(), dtype=tf.bool)
 
