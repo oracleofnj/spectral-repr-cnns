@@ -131,7 +131,7 @@ class CNN_Spectral_Pool(object):
             layers.append(conv_layer)
             self.conv_layer_weights.append(conv_layer.weight)
 
-            TODO: implement frequency dropout
+            # TODO: implement frequency dropout
             in_x = conv_layer.output()
             _, _, img_size, _ = in_x.get_shape().as_list()
             filter_size = self._get_sp_dim(img_size)
