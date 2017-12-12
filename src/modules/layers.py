@@ -5,7 +5,9 @@ import tensorflow as tf
 
 class default_conv_layer(object):
     def __init__(self, input_x, in_channel, out_channel,
-                 kernel_shape, rand_seed, m=0):
+                 kernel_shape, rand_seed,
+                 activation=tf.nn.relu,
+                 m=0):
         """
         NOTE: Image should be CHANNEL FIRST
         :param input_x: Should be a 4D array like:
@@ -63,7 +65,10 @@ class default_conv_layer(object):
                 conv_out,
                 self.bias, data_format='NCHW'
             )
-            cell_out = tf.nn.relu(cell_biased)
+            if activation is not None:
+                cell_out = activation(cell_biased)
+            else:
+                cell_out = cell_biased
 
             self.cell_out = cell_out
 

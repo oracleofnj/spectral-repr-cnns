@@ -176,6 +176,7 @@ class CNN_Spectral_Pool(object):
                                    out_channel=nfilters,
                                    kernel_shape=1,
                                    rand_seed=seed,
+                                   activation=None,
                                    m=self.M + 2)
         layers.append(layer)
         #
