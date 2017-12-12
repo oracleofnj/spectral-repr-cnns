@@ -181,25 +181,25 @@ class CNN_Spectral_Pool(object):
         #
         # final softmax layer:
         # flatten
-        layer = layers[-1]
-        pool_shape = layer.output().get_shape()
-        img_vector_length = pool_shape[1].value * \
-            pool_shape[2].value * \
-            pool_shape[3].value
-        flatten = tf.reshape(layer.output(), shape=[-1, img_vector_length])
-
-        fc_layer_0 = fc_layer(input_x=flatten,
-                              in_size=img_vector_length,
-                              out_size=10,
-                              rand_seed=seed,
-                              activation_function=None)
-        layers.append(fc_layer_0)
-
-        # self._print_message('softmax')
-        # global_average_0 = global_average_layer(layers[-1].output(),
-        #                                         m=0)
+        # layer = layers[-1]
+        # pool_shape = layer.output().get_shape()
+        # img_vector_length = pool_shape[1].value * \
+        #     pool_shape[2].value * \
+        #     pool_shape[3].value
+        # flatten = tf.reshape(layer.output(), shape=[-1, img_vector_length])
         #
-        # layers.append(global_average_0)
+        # fc_layer_0 = fc_layer(input_x=flatten,
+        #                       in_size=img_vector_length,
+        #                       out_size=10,
+        #                       rand_seed=seed,
+        #                       activation_function=None)
+        # layers.append(fc_layer_0)
+
+        self._print_message('softmax')
+        global_average_0 = global_average_layer(layers[-1].output(),
+                                                m=0)
+
+        layers.append(global_average_0)
 
         # update class variables:
         self.layers = layers

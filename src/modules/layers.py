@@ -217,7 +217,8 @@ class global_average_layer(object):
         """
         with tf.variable_scope('global_average_{0}'.format(m)):
             self.cell_out = tf.reduce_mean(input_x,
-                                           axis=(1, 2))
+                                           axis=(2, 3))
+            print(self.cell_out.get_shape())
 
     def output(self):
         return self.cell_out
