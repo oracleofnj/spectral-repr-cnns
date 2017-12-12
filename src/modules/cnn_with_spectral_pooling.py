@@ -1,5 +1,5 @@
 from .layers import default_conv_layer, spectral_pool_layer
-from .layers import fc_layer, global_average_layer, hw_conv_layer
+from .layers import fc_layer, global_average_layer
 import numpy as np
 import tensorflow as tf
 
@@ -52,7 +52,7 @@ class CNN_Spectral_Pool(object):
             m: current layer number
         """
         return min(self.max_num_filters,
-                   96 + 320 * m)
+                   96 + 32 * m)
 
     def _get_sp_dim(self, n):
         """Get filter size for current layer
@@ -73,14 +73,13 @@ class CNN_Spectral_Pool(object):
             n: size of image in layer
             m: current layer index
         """
-        return n
-        # c = self.alpha + (m / self.M) * (self.beta - self.alpha)
-        # ll = int(c * n)
-        # ndrop = np.random.random_integers(ll, n)
-        # # make sure it is odd:
-        # if ndrop % 2:
-        #     ndrop -= 1
-        # return ndrop
+        c = self.alpha + (m / self.M) * (self.beta - self.alpha)
+        ll = int(c * n)
+        ndrop = np.random.random_integers(ll, n)
+        # make sure it is odd:
+        if ndrop % 2:
+            ndrop -= 1
+        return ndrop
 
     def _print_message(self, name, args=None):
         if not self.verbose:
@@ -117,34 +116,33 @@ class CNN_Spectral_Pool(object):
 
             # get number of channels & image size
             # Note: we're working in channel first domain
-            _, _, img_size, nchannel = in_x.get_shape().as_list()
+            _, nchannel, img_size, _ = in_x.get_shape().as_list()
             nfilters = self._get_cnn_num_filters(m)
             self._print_message(
                 'conv',
                 (m, img_size, nchannel, nfilters, self.conv_filter_size)
             )
-            conv_layer = hw_conv_layer(input_x=in_x,
-                                       in_channel=nchannel,
-                                       out_channel=nfilters,
-                                       kernel_shape=self.conv_filter_size,
-                                       rand_seed=seed,
-                                       index=m)
-                                       # m=m)
+            conv_layer = default_conv_layer(input_x=in_x,
+                                            in_channel=nchannel,
+                                            out_channel=nfilters,
+                                            kernel_shape=self.conv_filter_size,
+                                            rand_seed=seed,
+                                            m=m)
             layers.append(conv_layer)
             self.conv_layer_weights.append(conv_layer.weight)
 
             # TODO: implement frequency dropout
-            in_x = conv_layer.output()
-            _, _, img_size, _ = in_x.get_shape().as_list()
-            filter_size = self._get_sp_dim(img_size)
-            freq_dropout = self._get_frq_dropout(img_size, m)
-            self._print_message('sp', (m, img_size, filter_size, freq_dropout))
-            sp_layer = spectral_pool_layer(input_x=in_x,
-                                           filter_size=filter_size,
-                                           freq_dropout=freq_dropout,
-                                           m=m,
-                                           train_phase=train_phase)
-            layers.append(sp_layer)
+            # in_x = conv_layer.output()
+            # _, _, img_size, _ = in_x.get_shape().as_list()
+            # filter_size = self._get_sp_dim(img_size)
+            # freq_dropout = self._get_frq_dropout(img_size, m)
+            # self._print_message('sp', (m, img_size, filter_size, freq_dropout))
+            # sp_layer = spectral_pool_layer(input_x=in_x,
+            #                                filter_size=filter_size,
+            #                                freq_dropout=freq_dropout,
+            #                                m=m,
+            #                                train_phase=train_phase)
+            # layers.append(sp_layer)
 
         # Add another conv layer:
         # in_x = layers[-1].output()
@@ -245,7 +243,7 @@ class CNN_Spectral_Pool(object):
         # defining a copy of learning rate to anneal if by 10% on specified epochs:
         self._learning_rate = self.learning_rate
         with tf.name_scope('inputs'):
-            xs = tf.placeholder(shape=[None, 32, 32, 3], dtype=tf.float32)
+            xs = tf.placeholder(shape=[None, 3, 32, 32], dtype=tf.float32)
             ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
             train_phase = tf.placeholder(shape=(), dtype=tf.bool)
 

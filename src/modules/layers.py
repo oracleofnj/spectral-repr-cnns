@@ -6,7 +6,7 @@ class default_conv_layer(object):
     def __init__(self, input_x, in_channel, out_channel,
                  kernel_shape, rand_seed, m=0):
         """
-        NOTE: Image should be CHANNEL LAST
+        NOTE: Image should be CHANNEL FIRST
         :param input_x: Should be a 4D array like:
                             (batch_num, channel_num, img_len, img_len)
         :param in_channel: The number of channels
@@ -16,8 +16,8 @@ class default_conv_layer(object):
         :param index: The layer index used for naming
         """
         assert len(input_x.shape) == 4
-        assert input_x.shape[1] == input_x.shape[2]
-        assert input_x.shape[3] == in_channel
+        assert input_x.shape[2] == input_x.shape[3]
+        assert input_x.shape[1] == in_channel
 
         # Alternative using layers but not using it
         # with tf.variable_scope('conv_layer_{0}'.format(m)):
@@ -56,8 +56,9 @@ class default_conv_layer(object):
             # strides [1, x_movement, y_movement, 1]
             conv_out = tf.nn.conv2d(input_x, weight,
                                     strides=[1, 1, 1, 1],
-                                    padding="SAME")
-            cell_out = tf.nn.relu(conv_out + bias)
+                                    padding="SAME",
+                                    data_format="NCHW")
+            cell_out = tf.nn.bias_add(conv_out, self.bias, data_format='NCHW')
 
             self.cell_out = cell_out
 
@@ -68,44 +69,6 @@ class default_conv_layer(object):
     def output(self):
         return self.cell_out
 
-
-class hw_conv_layer(object):
-    """ Homework layer"""
-    def __init__(self, input_x, in_channel, out_channel, kernel_shape, rand_seed, index=0):
-        """
-        :param input_x: The input of the conv layer. Should be a 4D array like (batch_num, img_len, img_len, channel_num)
-        :param in_channel: The 4-th demension (channel number) of input matrix. For example, in_channel=3 means the input contains 3 channels.
-        :param out_channel: The 4-th demension (channel number) of output matrix. For example, out_channel=5 means the output contains 5 channels (feature maps).
-        :param kernel_shape: the shape of the kernel. For example, kernal_shape = 3 means you have a 3*3 kernel.
-        :param rand_seed: An integer that presents the random seed used to generate the initial parameter value.
-        :param index: The index of the layer. It is used for naming only.
-        """
-        assert len(input_x.shape) == 4 and input_x.shape[1] == input_x.shape[2] and input_x.shape[3] == in_channel
-
-        with tf.variable_scope('conv_layer_%d' % index):
-            with tf.name_scope('conv_kernel'):
-                w_shape = [kernel_shape, kernel_shape, in_channel, out_channel]
-                weight = tf.get_variable(name='conv_kernel_%d' % index, shape=w_shape,
-                                         initializer=tf.glorot_uniform_initializer(seed=rand_seed))
-                self.weight = weight
-
-            with tf.variable_scope('conv_bias'):
-                b_shape = [out_channel]
-                bias = tf.get_variable(name='conv_bias_%d' % index, shape=b_shape,
-                                       initializer=tf.glorot_uniform_initializer(seed=rand_seed))
-                self.bias = bias
-
-            # strides [1, x_movement, y_movement, 1]
-            conv_out = tf.nn.conv2d(input_x, weight, strides=[1, 1, 1, 1], padding="SAME")
-            cell_out = tf.nn.relu(conv_out + bias)
-
-            self.cell_out = cell_out
-
-            tf.summary.histogram('conv_layer/{}/kernel'.format(index), weight)
-            tf.summary.histogram('conv_layer/{}/bias'.format(index), bias)
-
-    def output(self):
-        return self.cell_out
 
 class fc_layer(object):
     def __init__(self, input_x, in_size, out_size, rand_seed,
@@ -174,35 +137,38 @@ class spectral_pool_layer(object):
             im_channel_first = tf.transpose(input_x,
                                             perm=[0, 3, 1, 2])
 
-            im_fft = tf.fft2d(tf.cast(im_channel_first, tf.complex64))
-
-            # shift the image and crop based on the bounding box:
-            im_fshift = self._tf_fftshift(im_fft, dim)
-
-            # make channels last as required by crop function
-            im_channel_last = tf.transpose(im_fshift, perm=[0, 2, 3, 1])
-
-            offset = int(dim / 2) - int(filter_size / 2)
-            im_cropped = tf.image.crop_to_bounding_box(im_channel_last,
-                                                       offset, offset,
-                                                       filter_size, filter_size)
-
-            # perform ishift and take the inverse fft and throw img part
-            # make channels first for ishift and ifft2d:
-            im_channel_first = tf.transpose(im_cropped, perm=[0, 3, 1, 2])
-
-            # apply freq dropout:
-            self.fft_shape = im_channel_first.get_shape().as_list()
-            freq_drop_mat = tf.cond(
-                                    train_phase,
-                                    self._freq_dropout_matrix,
-                                    self._no_dropout_matrix)
-            im_freq_drop = tf.multiply(im_channel_first, freq_drop_mat)
-            im_ishift = self._tf_ifftshift(im_freq_drop, filter_size)
-            im_real = tf.real(tf.ifft2d(im_ishift))
+            # im_fft = tf.fft2d(tf.cast(im_channel_first, tf.complex64))
+            #
+            # # shift the image and crop based on the bounding box:
+            # im_fshift = self._tf_fftshift(im_fft, dim)
+            #
+            # # make channels last as required by crop function
+            # im_channel_last = tf.transpose(im_fshift, perm=[0, 2, 3, 1])
+            #
+            # offset = int(dim / 2) - int(filter_size / 2)
+            # im_cropped = tf.image.crop_to_bounding_box(im_channel_last,
+            #                                            offset, offset,
+            #                                            filter_size, filter_size)
+            #
+            # # perform ishift and take the inverse fft and throw img part
+            # # make channels first for ishift and ifft2d:
+            # im_channel_first = tf.transpose(im_cropped, perm=[0, 3, 1, 2])
+            #
+            # # apply freq dropout:
+            # self.fft_shape = im_channel_first.get_shape().as_list()
+            # freq_drop_mat = tf.ones_like(im_channel_first)
+            # # (shape=self.fft_shape[1:],
+            # #                         dtype=np.complex64)
+            # # freq_drop_mat = tf.cond(
+            # #                         train_phase,
+            # #                         self._freq_dropout_matrix,
+            # #                         self._no_dropout_matrix)
+            # im_freq_drop = tf.multiply(im_channel_first, freq_drop_mat)
+            # im_ishift = self._tf_ifftshift(im_freq_drop, filter_size)
+            # im_real = tf.real(tf.ifft2d(im_ishift))
 
             # make channels last as required by CNN
-            im_out = tf.transpose(im_real, perm=[0, 2, 3, 1])
+            im_out = tf.transpose(im_channel_first, perm=[0, 2, 3, 1])
 
         # THERE COULD BE A NORMALISING STEP HERE SIMILAR TO BATCH NORM BUT
         # I'M SKIPPING IT HERE
