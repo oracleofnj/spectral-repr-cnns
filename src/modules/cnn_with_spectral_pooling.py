@@ -131,18 +131,18 @@ class CNN_Spectral_Pool(object):
             layers.append(conv_layer)
             self.conv_layer_weights.append(conv_layer.weight)
 
-            # TODO: implement frequency dropout
-            # in_x = conv_layer.output()
-            # _, _, img_size, _ = in_x.get_shape().as_list()
-            # filter_size = self._get_sp_dim(img_size)
-            # freq_dropout = self._get_frq_dropout(img_size, m)
-            # self._print_message('sp', (m, img_size, filter_size, freq_dropout))
-            # sp_layer = spectral_pool_layer(input_x=in_x,
-            #                                filter_size=filter_size,
-            #                                freq_dropout=freq_dropout,
-            #                                m=m,
-            #                                train_phase=train_phase)
-            # layers.append(sp_layer)
+            TODO: implement frequency dropout
+            in_x = conv_layer.output()
+            _, _, img_size, _ = in_x.get_shape().as_list()
+            filter_size = self._get_sp_dim(img_size)
+            freq_dropout = self._get_frq_dropout(img_size, m)
+            self._print_message('sp', (m, img_size, filter_size, freq_dropout))
+            sp_layer = spectral_pool_layer(input_x=in_x,
+                                           filter_size=filter_size,
+                                           freq_dropout=freq_dropout,
+                                           m=m,
+                                           train_phase=train_phase)
+            layers.append(sp_layer)
 
         # Add another conv layer:
         # in_x = layers[-1].output()
