@@ -74,7 +74,7 @@ class default_conv_layer(object):
 
             tf.summary.histogram('conv_layer/{}/kernel'.format(m), weight)
             tf.summary.histogram('conv_layer/{}/bias'.format(m), bias)
-            tf.summary.histogram('conv_layer/{}/bias'.format(m), bias)
+            tf.summary.histogram('conv_layer/{}/activation'.format(m), cell_out)
 
     def output(self):
         return self.cell_out
