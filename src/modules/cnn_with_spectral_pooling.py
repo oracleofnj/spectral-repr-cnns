@@ -2,6 +2,7 @@ from .layers import default_conv_layer, spectral_pool_layer
 from .layers import fc_layer, global_average_layer
 import numpy as np
 import tensorflow as tf
+import time
 
 
 class CNN_Spectral_Pool(object):
@@ -267,7 +268,7 @@ class CNN_Spectral_Pool(object):
 
         with tf.Session() as sess:
             merge = tf.summary.merge_all()
-            writer = tf.summary.FileWriter("log/{}".format(model_name), sess.graph)
+            writer = tf.summary.FileWriter("log/{}/{}".format(model_name, time.time()), sess.graph)
             saver = tf.train.Saver()
 
             sess.run(init)
