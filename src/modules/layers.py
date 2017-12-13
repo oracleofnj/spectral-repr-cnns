@@ -68,6 +68,7 @@ class default_conv_layer(object):
             if activation is not None:
                 cell_out = activation(cell_biased)
             else:
+                print('Layer {0} has no activation'.format(m))
                 cell_out = cell_biased
 
             self.cell_out = cell_out
