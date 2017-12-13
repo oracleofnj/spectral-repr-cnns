@@ -228,7 +228,7 @@ class CNN_Spectral_Pool(object):
 
     def train_step(self, loss):
         with tf.name_scope('train_step'):
-            step = tf.train.MomentumOptimizer(self._learning_rate, 0.95).minimize(loss)
+            step = tf.train.AdamOptimizer(self._learning_rate).minimize(loss)
 
         return step
 
@@ -279,6 +279,7 @@ class CNN_Spectral_Pool(object):
                 print("training epoch {} ".format(epc + 1))
 
                 # anneal learning rate:
+                # TODO: Make _learning_rate a Variable and assign to it
                 if (epc + 1) in self.lr_reduction_epochs:
                     self._learning_rate = self._learning_rate * self.lr_reduction_factor
                     self._print_message('lr_anneal', epc + 1)
