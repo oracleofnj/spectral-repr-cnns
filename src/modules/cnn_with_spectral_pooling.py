@@ -242,7 +242,8 @@ class CNN_Spectral_Pool(object):
               batch_size=512, epochs=10, val_test_frq=1,
               extra_conv_layer=True,
               model_name='test'):
-        self.loss_vals = []
+        self.train_loss = []
+        self.val_loss = []
         self.train_accuracy = []
         self.val_accuracy = []
         # defining a copy of learning rate to anneal if by 10% on specified epochs:
@@ -296,20 +297,24 @@ class CNN_Spectral_Pool(object):
                                         feed_dict={xs: training_batch_x,
                                                    ys: training_batch_y,
                                                    train_phase: True})
-                    self.loss_vals.append(cur_loss)
+                    self.train_loss.append(cur_loss)
 
                 # check validation after certain number of epochs as specified in input
                 if (epc + 1) % val_test_frq == 0:
                     # do validation
-                    valid_eve, merge_result = sess.run([eve, merge],
-                                                       feed_dict={
-                                                       xs: X_val,
-                                                       ys: y_val,
-                                                       train_phase: False})
+                    valid_eve, valid_loss, merge_result = sess.run(
+                        [eve, loss, merge],
+                        feed_dict={
+                            xs: X_val,
+                            ys: y_val,
+                            train_phase: False
+                        }
+                    )
                     valid_acc = 100 - valid_eve * 100 / y_val.shape[0]
                     train_acc = 100 - train_eve * 100 / training_batch_y.shape[0]
                     self.train_accuracy.append(train_acc)
                     self.val_accuracy.append(valid_acc)
+                    self.val_loss.append(valid_loss)
                     if self.verbose:
                         print('{}/{} loss: {} | training accuracy: {:.3f}% | validation accuracy : {:.3f}%'.format(
                             batch_size * (itr + 1),
