@@ -68,14 +68,13 @@ class default_conv_layer(object):
             if activation is not None:
                 cell_out = activation(cell_biased)
             else:
-                print('Layer {0} has no activation'.format(m))
                 cell_out = cell_biased
 
             self.cell_out = cell_out
 
             tf.summary.histogram('conv_layer/{}/kernel'.format(m), weight)
             tf.summary.histogram('conv_layer/{}/bias'.format(m), bias)
-            self.cell_out = conv_out
+            tf.summary.histogram('conv_layer/{}/bias'.format(m), bias)
 
     def output(self):
         return self.cell_out
