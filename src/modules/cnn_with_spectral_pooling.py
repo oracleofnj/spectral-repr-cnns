@@ -227,7 +227,7 @@ class CNN_Spectral_Pool(object):
 
     def train_step(self, loss):
         with tf.name_scope('train_step'):
-            step = tf.train.AdamOptimizer(self._learning_rate).minimize(loss)
+            step = tf.train.MomentumOptimizer(self._learning_rate, 0.95).minimize(loss)
 
         return step
 
