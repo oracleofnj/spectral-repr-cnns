@@ -257,7 +257,8 @@ class CNN_Spectral_Pool(object):
         output, loss = self.build_graph(xs, ys, train_phase, extra_conv_layer)
         # print(type(loss))
         iters = int(X_train.shape[0] / batch_size)
-        print('number of batches for training: {}'.format(iters))
+        val_iters = int(X_val.shape[0] / batch_size)
+        print('number of batches for training: {} validation: {}'.format(iters, val_iters))
 
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
@@ -304,15 +305,29 @@ class CNN_Spectral_Pool(object):
                 # check validation after certain number of epochs as specified in input
                 if (epc + 1) % val_test_frq == 0:
                     # do validation
-                    valid_eve, valid_loss, merge_result = sess.run(
-                        [eve, loss, merge],
-                        feed_dict={
-                            xs: X_val,
-                            ys: y_val,
-                            train_phase: False
-                        }
-                    )
-                    valid_acc = 100 - valid_eve * 100 / y_val.shape[0]
+                    val_eves, val_losses, merge_results = [], [], []
+                    for val_itr in range(val_iters):
+                        val_batch_x = X_val[val_itr * batch_size:
+                                            (1 + val_itr) * batch_size]
+                        val_batch_y = y_val[val_itr * batch_size:
+                                            (1 + val_itr) * batch_size]
+
+                        valid_eve_iter, valid_loss_iter, merge_result_iter = sess.run(
+                            [eve, loss, merge],
+                            feed_dict={
+                                xs: val_batch_x,
+                                ys: val_batch_y,
+                                train_phase: False
+                            }
+                        )
+                        val_eves.append(valid_eve_iter)
+                        val_losses.append(valid_loss_iter)
+                        merge_results.append(merge_result_iter)
+                    valid_eve = np.mean(val_eves)
+                    valid_loss = np.mean(val_losses)
+                    merge_result = merge_results[-1]
+
+                    valid_acc = 100 - valid_eve * 100 / val_batch_y.shape[0]
                     train_acc = 100 - train_eve * 100 / training_batch_y.shape[0]
                     self.train_accuracy.append(train_acc)
                     self.val_accuracy.append(valid_acc)
