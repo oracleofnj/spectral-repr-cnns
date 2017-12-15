@@ -187,8 +187,8 @@ class spectral_pool_layer(object):
                 )
                 im_downsampled = tf.cond(
                     train_phase,
-                    lambda: im_transformed * 0, # dropout_mask,
-                    lambda: im_transformed
+                    lambda: im_transformed * dropout_mask,
+                    lambda: im_transformed * 0,
                 )
                 im_out = tf.real(tf.ifft2d(im_downsampled))
             else:
