@@ -67,20 +67,29 @@ class CNN_Spectral_Pool(object):
         # minimum size is 1:
         return max(1, fsize)
 
-    def _get_frq_dropout(self, n, m):
-        """Get the number of dimensions to make 0 in the
-        frequency domain.
+    def _get_frq_dropout_bounds(self, n, m):
+        """Get the bounds for frequency dropout.
+
         Args:
             n: size of image in layer
             m: current layer index
+
+        Returns:
+            freq_dropout_lower_bound: The lower bound for the cutoff
+            freq_dropout_upper_bound: The upper bound for the cutoff
         """
         c = self.alpha + (m / self.M) * (self.beta - self.alpha)
-        ll = int(c * n)
-        ndrop = np.random.random_integers(ll, n)
-        # make sure it is odd:
-        if ndrop % 2:
-            ndrop -= 1
-        return ndrop
+
+        freq_dropout_lower_bound = c * ((n + 1) / 2)
+        freq_dropout_upper_bound = (n + 1) / 2
+
+        return freq_dropout_lower_bound, freq_dropout_upper_bound
+        # ll = int(c * n)
+        # ndrop = np.random.random_integers(ll, n)
+        # # make sure it is odd:
+        # if ndrop % 2:
+        #     ndrop -= 1
+        # return ndrop
 
     def _print_message(self, name, args=None):
         if not self.verbose:
@@ -89,8 +98,8 @@ class CNN_Spectral_Pool(object):
             print('Adding conv layer {0} | Input size: {1} | Input channels: {2} | #filters: {3} | filter size: {4}'.format(
                                         args[0], args[1], args[2], args[3], args[4]))
         if name == 'sp':
-            print('Adding spectral pool layer {0} | Input size: {1} | filter size: ({2},{2}) | Freq Dropout: {3}'.format(
-                                        args[0], args[1], args[2], args[3]))
+            print('Adding spectral pool layer {0} | Input size: {1} | filter size: ({2},{2}) | Freq Dropout Bounds: ({3},{4})'.format(
+                                        args[0], args[1], args[2], args[3], args[4]))
         if name == 'softmax':
             print('Adding final softmax layer using global averaging')
 
@@ -138,12 +147,23 @@ class CNN_Spectral_Pool(object):
             in_x = conv_layer.output()
             _, _, img_size, _ = in_x.get_shape().as_list()
             filter_size = self._get_sp_dim(img_size)
-            freq_dropout = self._get_frq_dropout(img_size, m)
-            self._print_message('sp', (m, img_size, filter_size, freq_dropout))
-            sp_layer = spectral_pool_layer(input_x=in_x,
-                                           filter_size=filter_size,
-                                           m=m,
-                                           train_phase=train_phase)
+            freq_dropout_lower_bound, freq_dropout_upper_bound = \
+                self._get_frq_dropout_bounds(img_size, m)
+            self._print_message('sp', (
+                m,
+                img_size,
+                filter_size,
+                freq_dropout_lower_bound,
+                freq_dropout_upper_bound
+            ))
+            sp_layer = spectral_pool_layer(
+                input_x=in_x,
+                filter_size=filter_size,
+                freq_dropout_lower_bound=freq_dropout_lower_bound,
+                freq_dropout_upper_bound=freq_dropout_upper_bound,
+                m=m,
+                train_phase=train_phase
+            )
             layers.append(sp_layer)
 
         # Add another conv layer:
