@@ -67,20 +67,33 @@ class CNN_Spectral_Pool(object):
         # minimum size is 1:
         return max(1, fsize)
 
-    def _get_frq_dropout(self, n, m):
-        """Get the number of dimensions to make 0 in the
-        frequency domain.
+    def _get_frq_dropout_bounds(self, n, m):
+        """Get the bounds for frequency dropout.
+
         Args:
             n: size of image in layer
             m: current layer index
+
+        Returns:
+            freq_dropout_lower_bound: The lower bound for the cutoff
+            freq_dropout_upper_bound: The upper bound for the cutoff
         """
         c = self.alpha + (m / self.M) * (self.beta - self.alpha)
-        ll = int(c * n)
-        ndrop = np.random.random_integers(ll, n)
-        # make sure it is odd:
-        if ndrop % 2:
-            ndrop -= 1
-        return ndrop
+
+        # freq_dropout_lower_bound = c * (1. + n // 2)
+        # freq_dropout_upper_bound = (1. + n // 2)
+
+        # For testing purposes
+        freq_dropout_lower_bound = self.alpha * (1. + n // 2)
+        freq_dropout_upper_bound = self.beta * (1. + n // 2)
+
+        return freq_dropout_lower_bound, freq_dropout_upper_bound
+        # ll = int(c * n)
+        # ndrop = np.random.random_integers(ll, n)
+        # # make sure it is odd:
+        # if ndrop % 2:
+        #     ndrop -= 1
+        # return ndrop
 
     def _print_message(self, name, args=None):
         if not self.verbose:
@@ -89,10 +102,13 @@ class CNN_Spectral_Pool(object):
             print('Adding conv layer {0} | Input size: {1} | Input channels: {2} | #filters: {3} | filter size: {4}'.format(
                                         args[0], args[1], args[2], args[3], args[4]))
         if name == 'sp':
-            print('Adding spectral pool layer {0} | Input size: {1} | filter size: ({2},{2}) | Freq Dropout: {3}'.format(
-                                        args[0], args[1], args[2], args[3]))
+            print('Adding spectral pool layer {0} | Input size: {1} | filter size: ({2},{2}) | Freq Dropout Bounds: ({3},{4})'.format(
+                                        args[0], args[1], args[2], args[3], args[4]))
         if name == 'softmax':
             print('Adding final softmax layer using global averaging')
+
+        if name == 'final_fc':
+            print('Adding final softmax layer using fully-connected layer')
 
         if name == 'lr_anneal':
             print('\tLearning rate reduced to {0:.4e} at epoch {1}'.format(self._learning_rate, args))
@@ -100,6 +116,7 @@ class CNN_Spectral_Pool(object):
     def build_graph(
         self, input_x, input_y, train_phase,
         extra_conv_layer=True,
+        use_global_averaging=True,
     ):
         print("Building tf graph...")
 
@@ -138,13 +155,23 @@ class CNN_Spectral_Pool(object):
             in_x = conv_layer.output()
             _, _, img_size, _ = in_x.get_shape().as_list()
             filter_size = self._get_sp_dim(img_size)
-            freq_dropout = self._get_frq_dropout(img_size, m)
-            self._print_message('sp', (m, img_size, filter_size, freq_dropout))
-            sp_layer = spectral_pool_layer(input_x=in_x,
-                                           filter_size=filter_size,
-                                           freq_dropout=freq_dropout,
-                                           m=m,
-                                           train_phase=train_phase)
+            freq_dropout_lower_bound, freq_dropout_upper_bound = \
+                self._get_frq_dropout_bounds(filter_size, m)
+            self._print_message('sp', (
+                m,
+                img_size,
+                filter_size,
+                freq_dropout_lower_bound,
+                freq_dropout_upper_bound
+            ))
+            sp_layer = spectral_pool_layer(
+                input_x=in_x,
+                filter_size=filter_size,
+                freq_dropout_lower_bound=freq_dropout_lower_bound,
+                freq_dropout_upper_bound=freq_dropout_upper_bound,
+                m=m,
+                train_phase=train_phase
+            )
             layers.append(sp_layer)
 
         # Add another conv layer:
@@ -164,44 +191,47 @@ class CNN_Spectral_Pool(object):
                                        m=self.M + 1)
             layers.append(layer)
 
-        # Add last conv layer with same filters as number of classes:
-        in_x = layers[-1].output()
-        _, nchannel, img_size, _ = in_x.get_shape().as_list()
-        nfilters = self.num_output
-        self._print_message(
-            'conv',
-            (self.M + 2, img_size, nchannel, nfilters, 1)
-        )
-        layer = default_conv_layer(input_x=in_x,
-                                   in_channel=nchannel,
-                                   out_channel=nfilters,
-                                   kernel_shape=1,
-                                   rand_seed=seed,
-                                   activation=None,
-                                   m=self.M + 2)
-        layers.append(layer)
-        #
-        # final softmax layer:
-        # flatten
-        # layer = layers[-1]
-        # pool_shape = layer.output().get_shape()
-        # img_vector_length = pool_shape[1].value * \
-        #     pool_shape[2].value * \
-        #     pool_shape[3].value
-        # flatten = tf.reshape(layer.output(), shape=[-1, img_vector_length])
-        #
-        # fc_layer_0 = fc_layer(input_x=flatten,
-        #                       in_size=img_vector_length,
-        #                       out_size=10,
-        #                       rand_seed=seed,
-        #                       activation_function=None)
-        # layers.append(fc_layer_0)
+        if use_global_averaging:
+            # Add last conv layer with same filters as number of classes:
+            in_x = layers[-1].output()
+            _, nchannel, img_size, _ = in_x.get_shape().as_list()
+            nfilters = self.num_output
+            self._print_message(
+                'conv',
+                (self.M + 2, img_size, nchannel, nfilters, 1)
+            )
+            layer = default_conv_layer(input_x=in_x,
+                                       in_channel=nchannel,
+                                       out_channel=nfilters,
+                                       kernel_shape=1,
+                                       rand_seed=seed,
+                                       activation=None,
+                                       m=self.M + 2)
+            layers.append(layer)
 
-        self._print_message('softmax')
-        global_average_0 = global_average_layer(layers[-1].output(),
-                                                m=0)
-
-        layers.append(global_average_0)
+            self._print_message('softmax')
+            global_average_0 = global_average_layer(layers[-1].output(),
+                                                    m=0)
+            layers.append(global_average_0)
+        else:
+            self._print_message('final_fc')
+            layer = layers[-1]
+            pool_shape = layer.output().get_shape()
+            img_vector_length = pool_shape[1].value * \
+                pool_shape[2].value * \
+                pool_shape[3].value
+            flatten = tf.reshape(
+                layer.output(),
+                shape=[-1, img_vector_length]
+            )
+            fc_layer_0 = fc_layer(
+                input_x=flatten,
+                in_size=img_vector_length,
+                out_size=self.num_output,
+                rand_seed=seed,
+                activation_function=None
+            )
+            layers.append(fc_layer_0)
 
         # update class variables:
         self.layers = layers
@@ -226,9 +256,9 @@ class CNN_Spectral_Pool(object):
         # return global_average_0.output(), loss
         return layers[-1].output(), loss
 
-    def train_step(self, loss):
+    def train_step(self, loss, lr):
         with tf.name_scope('train_step'):
-            step = tf.train.AdamOptimizer(self._learning_rate).minimize(loss)
+            step = tf.train.AdamOptimizer(lr).minimize(loss)
 
         return step
 
@@ -242,7 +272,9 @@ class CNN_Spectral_Pool(object):
     def train(self, X_train, y_train, X_val, y_val,
               batch_size=512, epochs=10, val_test_frq=1,
               extra_conv_layer=True,
+              use_global_averaging=True,
               model_name='test'):
+        full_model_name = '{0}_{1}'.format(model_name, time.time())
         self.train_loss = []
         self.val_loss = []
         self.train_accuracy = []
@@ -252,24 +284,37 @@ class CNN_Spectral_Pool(object):
         with tf.name_scope('inputs'):
             xs = tf.placeholder(shape=[None, 3, 32, 32], dtype=tf.float32)
             ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
+            lr = tf.placeholder(shape=[], dtype=tf.float32)
             train_phase = tf.placeholder(shape=(), dtype=tf.bool)
 
-        output, loss = self.build_graph(xs, ys, train_phase, extra_conv_layer)
+        output, loss = self.build_graph(
+            xs,
+            ys,
+            train_phase,
+            extra_conv_layer,
+            use_global_averaging,
+        )
         # print(type(loss))
         iters = int(X_train.shape[0] / batch_size)
         val_iters = int(X_val.shape[0] / batch_size)
-        print('number of batches for training: {} validation: {}'.format(iters, val_iters))
+        print('number of batches for training: {} validation: {}'.format(
+            iters,
+            val_iters
+        ))
 
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
-            step = self.train_step(loss)
+            step = self.train_step(loss, lr)
         eve = self.evaluate(output, ys)
 
         init = tf.global_variables_initializer()
 
         with tf.Session() as sess:
             merge = tf.summary.merge_all()
-            writer = tf.summary.FileWriter("log/{}/{}".format(model_name, time.time()), sess.graph)
+            writer = tf.summary.FileWriter("log/{}/{}".format(
+                model_name,
+                full_model_name
+            ), sess.graph)
             saver = tf.train.Saver()
 
             sess.run(init)
@@ -299,6 +344,7 @@ class CNN_Spectral_Pool(object):
                                         [step, loss, eve],
                                         feed_dict={xs: training_batch_x,
                                                    ys: training_batch_y,
+                                                   lr: self._learning_rate,
                                                    train_phase: True})
                     self.train_loss.append(cur_loss)
 
@@ -347,10 +393,18 @@ class CNN_Spectral_Pool(object):
                     if valid_acc > best_acc:
                         print('\n\tBest validation accuracy! iteration:{} accuracy: {}%\n'.format(iter_total, valid_acc))
                         best_acc = valid_acc
-                        saver.save(sess, 'model/{}'.format(model_name))
+                        saver.save(sess, 'model/{}/{}'.format(
+                            model_name,
+                            full_model_name
+                        ))
 
-        print("Traning ends. The best valid accuracy is {:.3f}%. Model named: '{}'.".format(best_acc, model_name))
+        print("Best validation accuracy: {:.3f}%; Model name: '{}/{}'.".format(
+            best_acc,
+            model_name,
+            full_model_name
+        ))
 
+    # TODO: Put full_model_name in here
     def calc_test_accuracy(self, xtest, ytest, model_name='test'):
         # restore the last saved best model on this name:
         tf.reset_default_graph()
