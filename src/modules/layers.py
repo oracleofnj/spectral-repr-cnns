@@ -187,6 +187,7 @@ class spectral_pool_layer(object):
                 )
                 im_out = tf.real(tf.ifft2d(im_downsampled))
             else:
+                print('Not using dropout')
                 im_out = tf.real(tf.ifft2d(im_transformed))
 
         # THERE COULD BE A NORMALISING STEP HERE SIMILAR TO BATCH NORM BUT
