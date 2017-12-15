@@ -80,8 +80,8 @@ class CNN_Spectral_Pool(object):
         """
         c = self.alpha + (m / self.M) * (self.beta - self.alpha)
 
-        freq_dropout_lower_bound = c * ((n + 1) / 2)
-        freq_dropout_upper_bound = (n + 1) / 2
+        freq_dropout_lower_bound = c * (1 + n // 2)
+        freq_dropout_upper_bound = (1 + n // 2)
 
         return freq_dropout_lower_bound, freq_dropout_upper_bound
         # ll = int(c * n)
@@ -148,7 +148,7 @@ class CNN_Spectral_Pool(object):
             _, _, img_size, _ = in_x.get_shape().as_list()
             filter_size = self._get_sp_dim(img_size)
             freq_dropout_lower_bound, freq_dropout_upper_bound = \
-                self._get_frq_dropout_bounds(img_size, m)
+                self._get_frq_dropout_bounds(filter_size, m)
             self._print_message('sp', (
                 m,
                 img_size,

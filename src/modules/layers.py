@@ -171,19 +171,25 @@ class spectral_pool_layer(object):
                 freq_dropout_lower_bound is not None and
                 freq_dropout_upper_bound is not None
             ):
-                tf_random_cutoff = tf.random_uniform(
-                    [],
-                    freq_dropout_lower_bound,
-                    freq_dropout_upper_bound
-                )
-                dropout_mask = _frequency_dropout_mask(
-                    filter_size,
-                    tf_random_cutoff
-                )
+                def true_fn():
+                    tf_random_cutoff = tf.random_uniform(
+                        [],
+                        freq_dropout_lower_bound,
+                        freq_dropout_upper_bound
+                    )
+                    dropout_mask = _frequency_dropout_mask(
+                        filter_size,
+                        tf_random_cutoff
+                    )
+                    return im_transformed * dropout_mask
+
+                def false_fn():
+                    return im_transformed
+
                 im_downsampled = tf.cond(
                     train_phase,
-                    lambda: im_transformed * dropout_mask,
-                    lambda: im_transformed,
+                    true_fn=true_fn,
+                    false_fn=false_fn
                 )
                 im_out = tf.real(tf.ifft2d(im_downsampled))
             else:
