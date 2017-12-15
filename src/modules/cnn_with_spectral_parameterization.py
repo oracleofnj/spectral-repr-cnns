@@ -1,4 +1,4 @@
-from .layers import spectral_conv_layer
+from .layers import spectral_conv_layer, global_average_layer
 import numpy as np
 import tensorflow as tf
 
@@ -292,7 +292,7 @@ class CNN_Spectral_Param():
 										activation=None,
 										name='conv7')
 
-		global_avg = tf.reduce_mean(input_tensor=conv7, axis=[1,2])
+		global_avg = global_average_layer(input_x=conv7).output()
 
 		with tf.name_scope("loss"):
 			if self.use_spectral_params:
@@ -310,5 +310,4 @@ class CNN_Spectral_Param():
 			loss = tf.add(cross_entropy_loss, self.l2_norm * l2_loss, name='loss')
 
 		return global_avg, loss
-
 

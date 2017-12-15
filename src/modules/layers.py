@@ -317,6 +317,9 @@ class spectral_conv_layer(object):
                                     padding="SAME")
             self.cell_out = tf.nn.relu(conv_out + bias)
 
+    def output(self):
+        return self.cell_out
+
 class global_average_layer(object):
     def __init__(self, input_x, m=0):
         """
