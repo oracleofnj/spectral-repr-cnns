@@ -9,7 +9,7 @@ def frequency_dropout_mask(height, frequency_to_truncate_above):
     Args:
         height: int, the height of the image to create a mask for.
             For a 32x32 image, this should be 32.
-        frequency_to_truncate_above: Tensor (scalar) of shape (1,). All
+        frequency_to_truncate_above: Tensor of shape (,) (i.e. scalar). All
             frequencies above this will be set to zero. For an image with
             a height of 32, a number above 16 will have no effect. For an
             image with a height of 31, an input above 15 will have no effect.
@@ -24,7 +24,7 @@ def frequency_dropout_mask(height, frequency_to_truncate_above):
             of values to retain, not the mask of values to drop.
     """
     cutoff_shape = frequency_to_truncate_above.get_shape().as_list()
-    assert len(cutoff_shape) == 1 and cutoff_shape[0] == 1
+    assert len(cutoff_shape) == 0
 
     # Create an array "indexes" of the form [0 1 2 3 3 2 1], if height = 7,
     # or [0 1 2 3 4 3 2 1], if height = 8
