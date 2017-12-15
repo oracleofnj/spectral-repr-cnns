@@ -273,7 +273,8 @@ class CNN_Spectral_Pool(object):
               batch_size=512, epochs=10, val_test_frq=1,
               extra_conv_layer=True,
               use_global_averaging=True,
-              model_name='test'):
+              model_name='test',
+              restore_checkpoint=None):
         full_model_name = '{0}_{1}'.format(model_name, time.time())
         self.train_loss = []
         self.val_loss = []
@@ -318,6 +319,10 @@ class CNN_Spectral_Pool(object):
             saver = tf.train.Saver()
 
             sess.run(init)
+
+            if restore_checkpoint is not None:
+                print("Restarting training from checkpoint")
+                saver.restore(sess, 'model/{}'.format(restore_checkpoint))
 
             iter_total = 0
             best_acc = 0
