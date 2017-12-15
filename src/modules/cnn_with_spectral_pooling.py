@@ -83,7 +83,7 @@ class CNN_Spectral_Pool(object):
         freq_dropout_lower_bound = c * ((n + 1) / 2)
         freq_dropout_upper_bound = (n + 1) / 2
 
-        return 1., 3.
+        return 0., 1.
         return freq_dropout_lower_bound, freq_dropout_upper_bound
         # ll = int(c * n)
         # ndrop = np.random.random_integers(ll, n)
