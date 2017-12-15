@@ -88,10 +88,6 @@ class CNN_Spectral_Param():
 					print(self.train_accuracy[-1])
 					print(self.loss_vals[-1])
 
-	def _correct_spectral_weights(self):
-		pass
-
-
 	def _build_generic_architecture(self, input_x, input_y):
 		spatial_conv_weights = []
 
