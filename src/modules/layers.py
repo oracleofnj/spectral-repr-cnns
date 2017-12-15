@@ -1,4 +1,6 @@
+"""Implements layers for the spectral CNN."""
 from .spectral_pool import _common_spectral_pool
+from .frequency_dropout import _frequency_dropout_mask
 import numpy as np
 import tensorflow as tf
 
@@ -122,16 +124,33 @@ class fc_layer(object):
 
 
 class spectral_pool_layer(object):
-    def __init__(self, input_x, filter_size=3, freq_dropout=0,
-                 m=0, train_phase=True):
-        """ Perform a single spectral pool operation.
+    """Spectral pooling layer."""
+
+    def __init__(
+        self,
+        input_x,
+        filter_size=3,
+        freq_dropout_lower_bound=None,
+        freq_dropout_upper_bound=None,
+        m=0,
+        train_phase=False
+    ):
+        """Perform a single spectral pool operation.
+
         Args:
-            input_x: numpy array representing an image, channels last
-                shape: (batch_size, height, width, channel)
+            input_x: Tensor representing a batch of channels-first images
+                shape: (batch_size, num_channels, height, width)
             filter_size: int, the final dimension of the filter required
-            freq_dropout: int, clip freq number
+            freq_dropout_lower_bound: The lowest possible frequency
+                above which all frequencies should be truncated
+            freq_dropout_upper_bound: The highest possible frequency
+                above which all frequencies should be truncated
+            train_phase: tf.bool placeholder or Python boolean,
+                but using a Python boolean is probably wrong
+
         Returns:
             An image of similar shape as input after reduction
+
         NOTE: Filter size is enforced to be odd here. It is required to
         prevent the need for treating edge cases
         """
@@ -139,13 +158,30 @@ class spectral_pool_layer(object):
         assert filter_size % 2
         # assert only 1 dimension passed for filter size
         assert isinstance(filter_size, int)
-        # assign var:
-        self.freq_dropout = freq_dropout
+
+        input_shape = input_x.get_shape().as_list()
+        assert len(input_shape) == 4
+        _, _, H, W = input_shape
+        assert H == W
 
         with tf.variable_scope('spectral_pool_layer_{0}'.format(m)):
             im_fft = tf.fft2d(tf.cast(input_x, tf.complex64))
             im_transformed = _common_spectral_pool(im_fft, filter_size)
-            im_out = tf.real(tf.ifft2d(im_transformed))
+            tf_random_cutoff = tf.random_uniform(
+                [],
+                freq_dropout_lower_bound,
+                freq_dropout_upper_bound
+            )
+            dropout_mask = _frequency_dropout_mask(
+                filter_size,
+                tf_random_cutoff
+            )
+            im_downsampled = tf.cond(
+                train_phase,
+                im_transformed * dropout_mask,
+                im_transformed
+            )
+            im_out = tf.real(tf.ifft2d(im_downsampled))
 
         # THERE COULD BE A NORMALISING STEP HERE SIMILAR TO BATCH NORM BUT
         # I'M SKIPPING IT HERE
