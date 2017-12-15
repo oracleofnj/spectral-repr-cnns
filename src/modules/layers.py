@@ -175,6 +175,7 @@ class spectral_pool_layer(object):
                     freq_dropout_lower_bound,
                     freq_dropout_upper_bound
                 ))
+                print(train_phase)
                 tf_random_cutoff = tf.random_uniform(
                     [],
                     freq_dropout_lower_bound,
