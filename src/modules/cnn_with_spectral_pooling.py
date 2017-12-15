@@ -142,9 +142,8 @@ class CNN_Spectral_Pool(object):
             self._print_message('sp', (m, img_size, filter_size, freq_dropout))
             sp_layer = spectral_pool_layer(input_x=in_x,
                                            filter_size=filter_size,
-                                           freq_dropout=freq_dropout,
                                            m=m,
-                                           train_phase=train_phase)
+                                           train_phase=False)
             layers.append(sp_layer)
 
         # Add another conv layer:
@@ -243,6 +242,7 @@ class CNN_Spectral_Pool(object):
               batch_size=512, epochs=10, val_test_frq=1,
               extra_conv_layer=True,
               model_name='test'):
+        full_model_name = '{0}_{1}'.format(model_name, time.time())
         self.train_loss = []
         self.val_loss = []
         self.train_accuracy = []
@@ -258,7 +258,10 @@ class CNN_Spectral_Pool(object):
         # print(type(loss))
         iters = int(X_train.shape[0] / batch_size)
         val_iters = int(X_val.shape[0] / batch_size)
-        print('number of batches for training: {} validation: {}'.format(iters, val_iters))
+        print('number of batches for training: {} validation: {}'.format(
+            iters,
+            val_iters
+        ))
 
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
@@ -269,7 +272,10 @@ class CNN_Spectral_Pool(object):
 
         with tf.Session() as sess:
             merge = tf.summary.merge_all()
-            writer = tf.summary.FileWriter("log/{}/{}".format(model_name, time.time()), sess.graph)
+            writer = tf.summary.FileWriter("log/{}/{}".format(
+                model_name,
+                full_model_name
+            ), sess.graph)
             saver = tf.train.Saver()
 
             sess.run(init)
