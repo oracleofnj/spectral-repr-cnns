@@ -1,6 +1,8 @@
-from .layers import default_conv_layer, spectral_pool_layer, fc_layer
+from .layers import default_conv_layer, spectral_pool_layer
+from .layers import fc_layer, global_average_layer
 import numpy as np
 import tensorflow as tf
+import time
 
 
 class CNN_Spectral_Pool(object):
@@ -14,7 +16,7 @@ class CNN_Spectral_Pool(object):
                  weight_decay=1e-3,
                  momentum=0.95,
                  learning_rate=0.0088,
-                 l2_norm=0.01,
+                 l2_norm=0.0001,
                  lr_reduction_epochs=[100, 140],
                  lr_reduction_factor=0.1,
                  max_num_filters=288,
@@ -22,6 +24,9 @@ class CNN_Spectral_Pool(object):
                  verbose=False):
         """Initialize model, defaults are set as per the optimum
         hyperparameters stated in the journal.
+
+        params:
+        M = total number of (convolution + spectral-pool) layer-pairs
         """
         self.num_output = num_output
         self.M = M
@@ -37,11 +42,10 @@ class CNN_Spectral_Pool(object):
         self.lr_reduction_factor = lr_reduction_factor
         self.max_num_filters = max_num_filters
         self.random_seed = random_seed
-        self.verbose=verbose
+        self.verbose = verbose
 
         # some internal variables:
-        self.conv_layers = []
-        self.sp_layers = []
+        self.layers = []
 
     def _get_cnn_num_filters(self, m):
         """ Get number of filters for CNN
@@ -63,36 +67,61 @@ class CNN_Spectral_Pool(object):
         # minimum size is 1:
         return max(1, fsize)
 
-    def _get_frq_dropout(self, n, m):
-        """Get the number of dimensions to make 0 in the
-        frequency domain.
+    def _get_frq_dropout_bounds(self, n, m):
+        """Get the bounds for frequency dropout.
+
         Args:
-            n: current size of spectral filter
+            n: size of image in layer
             m: current layer index
+
+        Returns:
+            freq_dropout_lower_bound: The lower bound for the cutoff
+            freq_dropout_upper_bound: The upper bound for the cutoff
         """
         c = self.alpha + (m / self.M) * (self.beta - self.alpha)
-        ll = int(c * n)
-        ul = m + 1
-        ndrop = np.random.uniform(ll, ul)
-        return ndrop
-    
-    def _print_message(self, name, args):
+
+        # freq_dropout_lower_bound = c * (1. + n // 2)
+        # freq_dropout_upper_bound = (1. + n // 2)
+
+        # For testing purposes
+        freq_dropout_lower_bound = self.alpha * (1. + n // 2)
+        freq_dropout_upper_bound = self.beta * (1. + n // 2)
+
+        return freq_dropout_lower_bound, freq_dropout_upper_bound
+        # ll = int(c * n)
+        # ndrop = np.random.random_integers(ll, n)
+        # # make sure it is odd:
+        # if ndrop % 2:
+        #     ndrop -= 1
+        # return ndrop
+
+    def _print_message(self, name, args=None):
         if not self.verbose:
             return
         if name == 'conv':
             print('Adding conv layer {0} | Input size: {1} | Input channels: {2} | #filters: {3} | filter size: {4}'.format(
                                         args[0], args[1], args[2], args[3], args[4]))
         if name == 'sp':
-            print('Adding spectral pool layer {0} | Input size: {1} | filter size: ({2},{2})'.format(
-                                        args[0], args[1], args[2]))
-            
+            print('Adding spectral pool layer {0} | Input size: {1} | filter size: ({2},{2}) | Freq Dropout Bounds: ({3},{4})'.format(
+                                        args[0], args[1], args[2], args[3], args[4]))
+        if name == 'softmax':
+            print('Adding final softmax layer using global averaging')
 
-    def build_graph(self, input_x, input_y):
+        if name == 'final_fc':
+            print('Adding final softmax layer using fully-connected layer')
+
+        if name == 'lr_anneal':
+            print('\tLearning rate reduced to {0:.4e} at epoch {1}'.format(self._learning_rate, args))
+
+    def build_graph(
+        self, input_x, input_y, train_phase,
+        extra_conv_layer=True,
+        use_global_averaging=True,
+    ):
         print("Building tf graph...")
 
         # variable alias:
-        conv_layers = self.conv_layers
-        sp_layers = self.sp_layers
+        layers = self.layers
         seed = self.random_seed
 
         # conv layer weights:
@@ -103,181 +132,302 @@ class CNN_Spectral_Pool(object):
             if m == 1:
                 in_x = input_x
             else:
-                in_x = sp_layers[-1].output()
+                in_x = layers[-1].output()
 
             # get number of channels & image size
             # Note: we're working in channel first domain
-            _, _, img_size, nchannel = in_x.get_shape().as_list()
+            _, nchannel, img_size, _ = in_x.get_shape().as_list()
             nfilters = self._get_cnn_num_filters(m)
-            self._print_message('conv', (m, img_size, nchannel, nfilters, self.conv_filter_size))
+            self._print_message(
+                'conv',
+                (m, img_size, nchannel, nfilters, self.conv_filter_size)
+            )
             conv_layer = default_conv_layer(input_x=in_x,
                                             in_channel=nchannel,
                                             out_channel=nfilters,
                                             kernel_shape=self.conv_filter_size,
                                             rand_seed=seed,
                                             m=m)
-            conv_layers.append(conv_layer)
+            layers.append(conv_layer)
             self.conv_layer_weights.append(conv_layer.weight)
 
             # TODO: implement frequency dropout
             in_x = conv_layer.output()
             _, _, img_size, _ = in_x.get_shape().as_list()
             filter_size = self._get_sp_dim(img_size)
-            self._print_message('sp', (self.M + 1, img_size, filter_size))
-            sp_layer = spectral_pool_layer(input_x=in_x,
-                                           filter_size=filter_size)
-            sp_layers.append(sp_layer)
+            freq_dropout_lower_bound, freq_dropout_upper_bound = \
+                self._get_frq_dropout_bounds(filter_size, m)
+            self._print_message('sp', (
+                m,
+                img_size,
+                filter_size,
+                freq_dropout_lower_bound,
+                freq_dropout_upper_bound
+            ))
+            sp_layer = spectral_pool_layer(
+                input_x=in_x,
+                filter_size=filter_size,
+                freq_dropout_lower_bound=freq_dropout_lower_bound,
+                freq_dropout_upper_bound=freq_dropout_upper_bound,
+                m=m,
+                train_phase=train_phase
+            )
+            layers.append(sp_layer)
 
         # Add another conv layer:
-        in_x = sp_layers[-1].output()
-        _, _, img_size, nchannel = in_x.get_shape().as_list()
-        nfilters = self._get_cnn_num_filters(self.M)
-        self._print_message('conv', (self.M + 1, img_size, nchannel, nfilters, 1))
-        layer = default_conv_layer(input_x=in_x,
-                                   in_channel=nchannel,
-                                   out_channel=nfilters,
-                                   kernel_shape=1,
-                                   rand_seed=seed,
-                                   m=self.M + 1)
-        conv_layers.append(layer)
+        if extra_conv_layer:
+            in_x = layers[-1].output()
+            _, nchannel, img_size, _ = in_x.get_shape().as_list()
+            nfilters = self._get_cnn_num_filters(self.M)
+            self._print_message(
+                'conv',
+                (self.M + 1, img_size, nchannel, nfilters, 1)
+            )
+            layer = default_conv_layer(input_x=in_x,
+                                       in_channel=nchannel,
+                                       out_channel=nfilters,
+                                       kernel_shape=1,
+                                       rand_seed=seed,
+                                       m=self.M + 1)
+            layers.append(layer)
 
-        # Add last conv layer:
-        in_x = conv_layers[-1].output()
-        _, _, img_size, nchannel = in_x.get_shape().as_list()
-        nfilters = 10
-        self._print_message('conv', (self.M + 2, img_size, nchannel, nfilters, 1))
-        layer = default_conv_layer(input_x=in_x,
-                                   in_channel=nchannel,
-                                   out_channel=nfilters,
-                                   kernel_shape=1,
-                                   rand_seed=seed,
-                                   m=self.M + 2)
-        conv_layers.append(layer)
+        if use_global_averaging:
+            # Add last conv layer with same filters as number of classes:
+            in_x = layers[-1].output()
+            _, nchannel, img_size, _ = in_x.get_shape().as_list()
+            nfilters = self.num_output
+            self._print_message(
+                'conv',
+                (self.M + 2, img_size, nchannel, nfilters, 1)
+            )
+            layer = default_conv_layer(input_x=in_x,
+                                       in_channel=nchannel,
+                                       out_channel=nfilters,
+                                       kernel_shape=1,
+                                       rand_seed=seed,
+                                       activation=None,
+                                       m=self.M + 2)
+            layers.append(layer)
+
+            self._print_message('softmax')
+            global_average_0 = global_average_layer(layers[-1].output(),
+                                                    m=0)
+            layers.append(global_average_0)
+        else:
+            self._print_message('final_fc')
+            layer = layers[-1]
+            pool_shape = layer.output().get_shape()
+            img_vector_length = pool_shape[1].value * \
+                pool_shape[2].value * \
+                pool_shape[3].value
+            flatten = tf.reshape(
+                layer.output(),
+                shape=[-1, img_vector_length]
+            )
+            fc_layer_0 = fc_layer(
+                input_x=flatten,
+                in_size=img_vector_length,
+                out_size=self.num_output,
+                rand_seed=seed,
+                activation_function=None
+            )
+            layers.append(fc_layer_0)
 
         # update class variables:
-        self.conv_layers = conv_layers
-        self.sp_layers = sp_layers
-
-        # final softmax layer:
-        # flatten
-        print('Adding final softmax layer')
-        pool_shape = conv_layers[-1].output().get_shape()
-        img_vector_length = (pool_shape[1].value * pool_shape[2].value *
-                             pool_shape[3].value)
-        flatten = tf.reshape(conv_layers[-1].output(),
-                             shape=[-1, img_vector_length])
-
-        # fc layer
-        fc_layer0 = fc_layer(
-                            input_x=flatten,
-                            in_size=img_vector_length,
-                            out_size=self.num_output,
-                            rand_seed=seed,
-                            activation_function=None,
-                            m=0)
-        fc_w = [fc_layer0.weight]
+        self.layers = layers
 
         # define loss:
         with tf.name_scope("loss"):
-            l2_loss = tf.reduce_sum([tf.norm(w) for w in fc_w])
-            l2_loss += tf.reduce_sum([tf.norm(w, axis=[-2, -1])
-                                      for w in self.conv_layer_weights])
+            # l2_loss = tf.reduce_sum([tf.norm(w) for w in fc_w])
+            l2_loss = tf.reduce_sum([tf.norm(w, axis=[-2, -1])
+                                     for w in self.conv_layer_weights])
 
             label = tf.one_hot(input_y, self.num_output)
             cross_entropy_loss = tf.reduce_mean(
                 tf.nn.softmax_cross_entropy_with_logits(
                                                 labels=label,
-                                                logits=fc_layer0.output()),
+                                                # logits=global_average_0.output()),
+                                                logits=layers[-1].output()),
                 name='cross_entropy')
             loss = tf.add(cross_entropy_loss,
                           self.l2_norm * l2_loss,
                           name='loss')
+            tf.summary.scalar('SP_loss', loss)
+        # return global_average_0.output(), loss
+        return layers[-1].output(), loss
 
-        return fc_layer0.output(), loss
-
-    def train_step(self, loss):
+    def train_step(self, loss, lr):
         with tf.name_scope('train_step'):
-            step = tf.train.AdamOptimizer(self.learning_rate).minimize(loss)
+            step = tf.train.AdamOptimizer(lr).minimize(loss)
 
         return step
 
-    def evaluate(self, pred, input_y):
+    def evaluate(self, output, input_y):
         with tf.name_scope('evaluate'):
-            # pred = tf.argmax(output, axis=1)
+            pred = tf.argmax(output, axis=1)
             error_num = tf.count_nonzero(pred - input_y, name='error_num')
-            tf.summary.scalar('LeNet_error_num', error_num)
+            tf.summary.scalar('model_error_num', error_num)
         return error_num
 
-    def train(self, X_train, y_train, X_val, y_test,
-              batch_size=512, epochs=10, val_test_frq=20):
-        self.loss_vals = []
+    def train(self, X_train, y_train, X_val, y_val,
+              batch_size=512, epochs=10, val_test_frq=1,
+              extra_conv_layer=True,
+              use_global_averaging=True,
+              model_name='test'):
+        full_model_name = '{0}_{1}'.format(model_name, time.time())
+        self.train_loss = []
+        self.val_loss = []
         self.train_accuracy = []
+        self.val_accuracy = []
+        # defining a copy of learning rate to anneal if by 10% on specified epochs:
+        self._learning_rate = self.learning_rate
         with tf.name_scope('inputs'):
-            xs = tf.placeholder(shape=[None, 32, 32, 3], dtype=tf.float32)
+            xs = tf.placeholder(shape=[None, 3, 32, 32], dtype=tf.float32)
             ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
+            lr = tf.placeholder(shape=[], dtype=tf.float32)
+            train_phase = tf.placeholder(shape=(), dtype=tf.bool)
 
-            output, loss = self.build_graph(xs, ys)
-            # print(type(loss))
-            iters = int(X_train.shape[0] / batch_size)
-            print('number of batches for training: {}'.format(iters))
+        output, loss = self.build_graph(
+            xs,
+            ys,
+            train_phase,
+            extra_conv_layer,
+            use_global_averaging,
+        )
+        # print(type(loss))
+        iters = int(X_train.shape[0] / batch_size)
+        val_iters = int(X_val.shape[0] / batch_size)
+        print('number of batches for training: {} validation: {}'.format(
+            iters,
+            val_iters
+        ))
 
-            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-            with tf.control_dependencies(update_ops):
-                step = self.train_step(loss)
-            pred = tf.argmax(output, axis=1)
-            eve = self.evaluate(pred, ys)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            step = self.train_step(loss, lr)
+        eve = self.evaluate(output, ys)
 
-            init = tf.global_variables_initializer()
-            with tf.Session() as sess:
-                sess.run(init)
+        init = tf.global_variables_initializer()
 
-                iter_total = 0
-                for epc in range(epochs):
-                    print("epoch {} ".format(epc + 1))
+        with tf.Session() as sess:
+            merge = tf.summary.merge_all()
+            writer = tf.summary.FileWriter("log/{}/{}".format(
+                model_name,
+                full_model_name
+            ), sess.graph)
+            saver = tf.train.Saver()
 
-                    for itr in range(iters):
-                        iter_total += 1
-                        print("Training batch {0}".format(itr))
+            sess.run(init)
 
-                        training_batch_x = X_train[itr * batch_size:
-                                                   (1 + itr) * batch_size]
-                        training_batch_y = y_train[itr * batch_size:
-                                                   (1 + itr) * batch_size]
+            iter_total = 0
+            best_acc = 0
+            for epc in range(epochs):
+                print("training epoch {} ".format(epc + 1))
 
-                        _, cur_loss, train_eve = sess.run(
-                                            [step, loss, eve],
-                                            feed_dict={xs: training_batch_x,
-                                                       ys: training_batch_y})
-                        self.loss_vals.append(cur_loss)
-                        self.train_accuracy.append(1 - train_eve / batch_size)
-                    print(self.train_accuracy[-1])
+                # anneal learning rate:
+                # TODO: Make _learning_rate a Variable and assign to it
+                if (epc + 1) in self.lr_reduction_epochs:
+                    self._learning_rate = self._learning_rate * self.lr_reduction_factor
+                    self._print_message('lr_anneal', epc + 1)
 
-                    # if iter_total % 100 == 0:
-                    #     # do validation
-                    #     valid_eve, merge_result = sess.run([eve, merge],
-                    #                                        feed_dict={
-                    #                                        xs: X_val,
-                    #                                        ys: y_val,
-                    #                                        train_phase: False})
-                    #     valid_acc = 100 - valid_eve * 100 / y_val.shape[0]
-                    #     train_acc = 100 - train_eve * 100 / training_batch_y.shape[0]
-                    #     if verbose:
-                    #         print('{}/{} loss: {} | training accuracy: {} | validation accuracy : {}%'.format(
-                    #             batch_size * (itr + 1),
-                    #             X_train.shape[0],
-                    #             cur_loss,
-                    #             train_acc,
-                    #             valid_acc))
+                for itr in range(iters):
+                    iter_total += 1
+                    # if self.verbose:
+                    #     print("\tTraining batch {0}".format(itr))
 
-        #                 # save the merge result summary
-        #                 writer.add_summary(merge_result, iter_total)
+                    training_batch_x = X_train[itr * batch_size:
+                                               (1 + itr) * batch_size]
+                    training_batch_y = y_train[itr * batch_size:
+                                               (1 + itr) * batch_size]
 
-        #                 # when achieve the best validation accuracy, we store the model paramters
-        #                 if valid_acc > best_acc:
-        #                     print('Best validation accuracy! iteration:{} accuracy: {}%'.format(iter_total, valid_acc))
-        #                     best_acc = valid_acc
-        #                     saver.save(sess, 'model/{}'.format(cur_model_name))
+                    _, cur_loss, train_eve = sess.run(
+                                        [step, loss, eve],
+                                        feed_dict={xs: training_batch_x,
+                                                   ys: training_batch_y,
+                                                   lr: self._learning_rate,
+                                                   train_phase: True})
+                    self.train_loss.append(cur_loss)
 
-        # print("Traning ends. The best valid accuracy is {}. Model named {}.".format(best_acc, cur_model_name))
+                # check validation after certain number of epochs as specified in input
+                if (epc + 1) % val_test_frq == 0:
+                    # do validation
+                    val_eves, val_losses, merge_results = [], [], []
+                    for val_itr in range(val_iters):
+                        val_batch_x = X_val[val_itr * batch_size:
+                                            (1 + val_itr) * batch_size]
+                        val_batch_y = y_val[val_itr * batch_size:
+                                            (1 + val_itr) * batch_size]
 
+                        valid_eve_iter, valid_loss_iter, merge_result_iter = sess.run(
+                            [eve, loss, merge],
+                            feed_dict={
+                                xs: val_batch_x,
+                                ys: val_batch_y,
+                                train_phase: False
+                            }
+                        )
+                        val_eves.append(valid_eve_iter)
+                        val_losses.append(valid_loss_iter)
+                        merge_results.append(merge_result_iter)
+                    valid_eve = np.mean(val_eves)
+                    valid_loss = np.mean(val_losses)
+                    merge_result = merge_results[-1]
 
+                    valid_acc = 100 - valid_eve * 100 / val_batch_y.shape[0]
+                    train_acc = 100 - train_eve * 100 / training_batch_y.shape[0]
+                    self.train_accuracy.append(train_acc)
+                    self.val_accuracy.append(valid_acc)
+                    self.val_loss.append(valid_loss)
+                    if self.verbose:
+                        print('{}/{} loss: {} | training accuracy: {:.3f}% | validation accuracy : {:.3f}%'.format(
+                            batch_size * (itr + 1),
+                            X_train.shape[0],
+                            cur_loss,
+                            train_acc,
+                            valid_acc))
+
+                    # save the merge result summary
+                    writer.add_summary(merge_result, iter_total)
+
+                    # when achieve the best validation accuracy, we store the model paramters
+                    if valid_acc > best_acc:
+                        print('\n\tBest validation accuracy! iteration:{} accuracy: {}%\n'.format(iter_total, valid_acc))
+                        best_acc = valid_acc
+                        saver.save(sess, 'model/{}/{}'.format(
+                            model_name,
+                            full_model_name
+                        ))
+
+        print("Best validation accuracy: {:.3f}%; Model name: '{}/{}'.".format(
+            best_acc,
+            model_name,
+            full_model_name
+        ))
+
+    # TODO: Put full_model_name in here
+    def calc_test_accuracy(self, xtest, ytest, model_name='test'):
+        # restore the last saved best model on this name:
+        tf.reset_default_graph()
+        with tf.name_scope('inputs'):
+            xs = tf.placeholder(shape=[None, 3, 32, 32], dtype=tf.float32)
+            ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
+            train_phase = tf.placeholder(shape=(), dtype=tf.bool)
+
+        output, _ = self.build_graph(xs, ys, train_phase)
+        eve = self.evaluate(output, ys)
+
+        init = tf.global_variables_initializer()
+        with tf.Session() as sess:
+            saver = tf.train.Saver()
+            sess.run(init)
+            # restore the pre_trained
+            print("Loading pre-trained model")
+            saver.restore(sess, 'model/{}'.format(model_name))
+
+            test_eve = sess.run(eve,
+                                feed_dict={
+                                xs: xtest,
+                                ys: ytest,
+                                train_phase: False})
+            test_acc = 100 - test_eve * 100 / ytest.shape[0]
+            print('Test accuracy: {:.3f}'.format(test_acc))

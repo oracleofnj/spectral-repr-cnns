@@ -2,6 +2,20 @@ import numpy as np
 import tensorflow as tf
 
 
+def _common_spectral_pool(images, filter_size):
+    assert filter_size % 2
+    assert len(images.get_shape().as_list()) == 4
+    n = int((filter_size-1)/2)
+    top_left = images[:, :, :n+1, :n+1]
+    top_right = images[:, :, :n+1, -n:]
+    bottom_left = images[:, :, -n:, :n+1]
+    bottom_right = images[:, :, -n:, -n:]
+    top_combined = tf.concat([top_left, top_right], axis=-1)
+    bottom_combined = tf.concat([bottom_left, bottom_right], axis=-1)
+    all_together = tf.concat([top_combined, bottom_combined], axis=-2)
+    return all_together
+
+
 def _tfshift(matrix, n, axis=1, invert=False):
     """Handler for shifting one axis at a time.
     Helpful for fftshift if invert is False and ifftshift otherwise
@@ -57,45 +71,35 @@ def spectral_pool(image, filter_size=3,
     """
     # filter size should always be odd:
     assert filter_size % 2
-
+    # add dimension to image:
     tf.reset_default_graph()
     im = tf.placeholder(shape=image.shape, dtype=tf.float32)
-    dim = im.get_shape().as_list()[1]
+    dim = im.get_shape().as_list()[2]
 
-    # make channels first & get fft
-    im_channel_first = tf.transpose(im, perm=[0, 3, 1, 2])
-    im_fft = tf.fft2d(tf.cast(im_channel_first, tf.complex64))
+    im_fft = tf.fft2d(tf.cast(im, tf.complex64))
 
-    # shift the image and crop based on the bounding box:
-    im_fshift = tf_fftshift(im_fft, dim)
-
-    # make channels last as required by crop function
-    im_channel_last = tf.transpose(im_fshift, perm=[0, 2, 3, 1])
-
-    offset = int(dim / 2) - int(filter_size / 2)
-    im_cropped = tf.image.crop_to_bounding_box(im_channel_last, offset, offset,
-                                               filter_size, filter_size)
+    im_transformed = _common_spectral_pool(im_fft, filter_size)
+    print('im_transformed', im_transformed.get_shape())
 
     # pad zeros to the image
     # this is required only when we're visualizing the image and not in
     # the final spectral layer
     # required to handle odd and even image size
-    offset = int((dim + 1 - filter_size) / 2)
-    im_pad = tf.image.pad_to_bounding_box(im_cropped, offset, offset, dim, dim)
+    # offset = int((dim + 1 - filter_size) / 2)
+    # im_pad = tf.image.pad_to_bounding_box(im_cropped, offset, offset, dim, dim)
     # im_pad = im_cropped
-
+    im_ifft = tf.real(tf.ifft2d(im_transformed))
+    print('im_ifft', im_ifft.get_shape())
     # perform ishift and take the inverse fft and throw img part
     # make channels first for ishift and ifft2d:
-    im_channel_first2 = tf.transpose(im_pad, perm=[0, 3, 1, 2])
-    im_ishift = tf_ifftshift(im_channel_first2, dim)
-    im_channel_last = tf.transpose(tf.real(tf.ifft2d(im_ishift)),
-                                   perm=[0, 2, 3, 1])
 
     # normalize image:
-    channel_max = tf.reduce_max(im_channel_last, axis=(0, 1, 2))
-    channel_min = tf.reduce_min(im_channel_last, axis=(0, 1, 2))
-    im_out = tf.divide(im_channel_last - channel_min,
+    im_ch_last = tf.transpose(im_ifft, perm=[0, 2, 3, 1])
+    channel_max = tf.reduce_max(im_ch_last, axis=(0, 1, 2))
+    channel_min = tf.reduce_min(im_ch_last, axis=(0, 1, 2))
+    im_out = tf.divide(im_ch_last - channel_min,
                        channel_max - channel_min)
+    print('im_out', im_out.get_shape())
 
     init = tf.global_variables_initializer()
     with tf.Session() as sess:
@@ -106,7 +110,7 @@ def spectral_pool(image, filter_size=3,
             return im_fftout, im_new
         else:
             im_new = sess.run([im_out],
-                               feed_dict={im: image})
+                              feed_dict={im: image})
             return im_new
 
 

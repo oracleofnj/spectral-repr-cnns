@@ -1,12 +1,17 @@
+"""Implements layers for the spectral CNN."""
+from .spectral_pool import _common_spectral_pool
+from .frequency_dropout import _frequency_dropout_mask
 import numpy as np
 import tensorflow as tf
 
 
 class default_conv_layer(object):
     def __init__(self, input_x, in_channel, out_channel,
-                 kernel_shape, rand_seed, m=0):
+                 kernel_shape, rand_seed,
+                 activation=tf.nn.relu,
+                 m=0):
         """
-        NOTE: Image should be CHANNEL LAST
+        NOTE: Image should be CHANNEL FIRST
         :param input_x: Should be a 4D array like:
                             (batch_num, channel_num, img_len, img_len)
         :param in_channel: The number of channels
@@ -16,8 +21,8 @@ class default_conv_layer(object):
         :param index: The layer index used for naming
         """
         assert len(input_x.shape) == 4
-        assert input_x.shape[1] == input_x.shape[2]
-        assert input_x.shape[3] == in_channel
+        assert input_x.shape[2] == input_x.shape[3]
+        assert input_x.shape[1] == in_channel
 
         # Alternative using layers but not using it
         # with tf.variable_scope('conv_layer_{0}'.format(m)):
@@ -56,14 +61,22 @@ class default_conv_layer(object):
             # strides [1, x_movement, y_movement, 1]
             conv_out = tf.nn.conv2d(input_x, weight,
                                     strides=[1, 1, 1, 1],
-                                    padding="SAME")
-            cell_out = tf.nn.relu(conv_out + bias)
+                                    padding="SAME",
+                                    data_format="NCHW")
+            cell_biased = tf.nn.bias_add(
+                conv_out,
+                self.bias, data_format='NCHW'
+            )
+            if activation is not None:
+                cell_out = activation(cell_biased)
+            else:
+                cell_out = cell_biased
 
             self.cell_out = cell_out
 
             tf.summary.histogram('conv_layer/{}/kernel'.format(m), weight)
             tf.summary.histogram('conv_layer/{}/bias'.format(m), bias)
-            self.cell_out = conv_out
+            tf.summary.histogram('conv_layer/{}/activation'.format(m), cell_out)
 
     def output(self):
         return self.cell_out
@@ -111,16 +124,33 @@ class fc_layer(object):
 
 
 class spectral_pool_layer(object):
-    def __init__(self, input_x, filter_size=3):
-        """ Perform a single spectral pool operation.
+    """Spectral pooling layer."""
+
+    def __init__(
+        self,
+        input_x,
+        filter_size=3,
+        freq_dropout_lower_bound=None,
+        freq_dropout_upper_bound=None,
+        m=0,
+        train_phase=False
+    ):
+        """Perform a single spectral pool operation.
+
         Args:
-            input_x: numpy array representing an image, channels last
-                shape: (batch_size, height, width, channel)
+            input_x: Tensor representing a batch of channels-first images
+                shape: (batch_size, num_channels, height, width)
             filter_size: int, the final dimension of the filter required
-            return_fft: bool, if True function also returns the raw
-                              fourier transform
+            freq_dropout_lower_bound: The lowest possible frequency
+                above which all frequencies should be truncated
+            freq_dropout_upper_bound: The highest possible frequency
+                above which all frequencies should be truncated
+            train_phase: tf.bool placeholder or Python boolean,
+                but using a Python boolean is probably wrong
+
         Returns:
             An image of similar shape as input after reduction
+
         NOTE: Filter size is enforced to be odd here. It is required to
         prevent the need for treating edge cases
         """
@@ -129,31 +159,41 @@ class spectral_pool_layer(object):
         # assert only 1 dimension passed for filter size
         assert isinstance(filter_size, int)
 
-        dim = input_x.get_shape().as_list()[2]
-        im_channel_first = tf.transpose(input_x,
-                                        perm=[0, 3, 1, 2])
+        input_shape = input_x.get_shape().as_list()
+        assert len(input_shape) == 4
+        _, _, H, W = input_shape
+        assert H == W
 
-        im_fft = tf.fft2d(tf.cast(im_channel_first, tf.complex64))
+        with tf.variable_scope('spectral_pool_layer_{0}'.format(m)):
+            im_fft = tf.fft2d(tf.cast(input_x, tf.complex64))
+            im_transformed = _common_spectral_pool(im_fft, filter_size)
+            if (
+                freq_dropout_lower_bound is not None and
+                freq_dropout_upper_bound is not None
+            ):
+                def true_fn():
+                    tf_random_cutoff = tf.random_uniform(
+                        [],
+                        freq_dropout_lower_bound,
+                        freq_dropout_upper_bound
+                    )
+                    dropout_mask = _frequency_dropout_mask(
+                        filter_size,
+                        tf_random_cutoff
+                    )
+                    return im_transformed * dropout_mask
 
-        # shift the image and crop based on the bounding box:
-        im_fshift = self._tf_fftshift(im_fft, dim)
+                def false_fn():
+                    return im_transformed
 
-        # make channels last as required by crop function
-        im_channel_last = tf.transpose(im_fshift, perm=[0, 2, 3, 1])
-
-        offset = int(dim / 2) - int(filter_size / 2)
-        im_cropped = tf.image.crop_to_bounding_box(im_channel_last,
-                                                   offset, offset,
-                                                   filter_size, filter_size)
-
-        # perform ishift and take the inverse fft and throw img part
-        # make channels first for ishift and ifft2d:
-        im_channel_first = tf.transpose(im_cropped, perm=[0, 3, 1, 2])
-        im_ishift = self._tf_ifftshift(im_channel_first, filter_size)
-        im_real = tf.real(tf.ifft2d(im_ishift))
-
-        # make channels last as required by CNN
-        im_out = tf.transpose(im_real, perm=[0, 2, 3, 1])
+                im_downsampled = tf.cond(
+                    train_phase,
+                    true_fn=true_fn,
+                    false_fn=false_fn
+                )
+                im_out = tf.real(tf.ifft2d(im_downsampled))
+            else:
+                im_out = tf.real(tf.ifft2d(im_transformed))
 
         # THERE COULD BE A NORMALISING STEP HERE SIMILAR TO BATCH NORM BUT
         # I'M SKIPPING IT HERE
@@ -169,6 +209,22 @@ class spectral_pool_layer(object):
 
     def output(self):
         return self.cell_out
+
+    def _freq_dropout_matrix(self):
+        """Create a matrix to be multiplied to implement freq dropout.
+        Its a 1s matrix with values after freq_dropout made 0"""
+        fft_shape = self.fft_shape
+        freq_dropout = self.freq_dropout
+        out = np.zeros(shape=fft_shape[1:],
+                       dtype=np.complex64)
+        start = int((fft_shape[-1] - freq_dropout)/2)
+        end = freq_dropout + start
+        out[:, start:end, start:end] = 1
+        return out
+
+    def _no_dropout_matrix(self):
+        return np.ones(shape=self.fft_shape[1:],
+                       dtype=np.complex64)
 
     def _tfshift(self, matrix, n, axis=1, invert=False):
         """Handler for shifting one axis at a time.
@@ -260,6 +316,16 @@ class spectral_conv_layer(object):
                                     strides=[1, 1, 1, 1],
                                     padding="SAME")
             self.cell_out = tf.nn.relu(conv_out + bias)
+
+class global_average_layer(object):
+    def __init__(self, input_x, m=0):
+        """
+        :param input_x: The input of the last convolution layer, channels last
+        """
+        with tf.variable_scope('global_average_{0}'.format(m)):
+            self.cell_out = tf.reduce_mean(input_x,
+                                           axis=(2, 3))
+            print(self.cell_out.get_shape())
 
     def output(self):
         return self.cell_out
