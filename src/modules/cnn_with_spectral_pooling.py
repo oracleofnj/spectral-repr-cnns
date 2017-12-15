@@ -107,12 +107,16 @@ class CNN_Spectral_Pool(object):
         if name == 'softmax':
             print('Adding final softmax layer using global averaging')
 
+        if name == 'final_fc':
+            print('Adding final softmax layer using fully-connected layer')
+
         if name == 'lr_anneal':
             print('\tLearning rate reduced to {0:.4e} at epoch {1}'.format(self._learning_rate, args))
 
     def build_graph(
         self, input_x, input_y, train_phase,
         extra_conv_layer=True,
+        use_global_averaging=True,
     ):
         print("Building tf graph...")
 
@@ -187,44 +191,47 @@ class CNN_Spectral_Pool(object):
                                        m=self.M + 1)
             layers.append(layer)
 
-        # Add last conv layer with same filters as number of classes:
-        in_x = layers[-1].output()
-        _, nchannel, img_size, _ = in_x.get_shape().as_list()
-        nfilters = self.num_output
-        self._print_message(
-            'conv',
-            (self.M + 2, img_size, nchannel, nfilters, 1)
-        )
-        layer = default_conv_layer(input_x=in_x,
-                                   in_channel=nchannel,
-                                   out_channel=nfilters,
-                                   kernel_shape=1,
-                                   rand_seed=seed,
-                                   activation=None,
-                                   m=self.M + 2)
-        layers.append(layer)
-        #
-        # final softmax layer:
-        # flatten
-        # layer = layers[-1]
-        # pool_shape = layer.output().get_shape()
-        # img_vector_length = pool_shape[1].value * \
-        #     pool_shape[2].value * \
-        #     pool_shape[3].value
-        # flatten = tf.reshape(layer.output(), shape=[-1, img_vector_length])
-        #
-        # fc_layer_0 = fc_layer(input_x=flatten,
-        #                       in_size=img_vector_length,
-        #                       out_size=10,
-        #                       rand_seed=seed,
-        #                       activation_function=None)
-        # layers.append(fc_layer_0)
+        if use_global_averaging:
+            # Add last conv layer with same filters as number of classes:
+            in_x = layers[-1].output()
+            _, nchannel, img_size, _ = in_x.get_shape().as_list()
+            nfilters = self.num_output
+            self._print_message(
+                'conv',
+                (self.M + 2, img_size, nchannel, nfilters, 1)
+            )
+            layer = default_conv_layer(input_x=in_x,
+                                       in_channel=nchannel,
+                                       out_channel=nfilters,
+                                       kernel_shape=1,
+                                       rand_seed=seed,
+                                       activation=None,
+                                       m=self.M + 2)
+            layers.append(layer)
 
-        self._print_message('softmax')
-        global_average_0 = global_average_layer(layers[-1].output(),
-                                                m=0)
-
-        layers.append(global_average_0)
+            self._print_message('softmax')
+            global_average_0 = global_average_layer(layers[-1].output(),
+                                                    m=0)
+            layers.append(global_average_0)
+        else:
+            self._print_message('final_fc')
+            layer = layers[-1]
+            pool_shape = layer.output().get_shape()
+            img_vector_length = pool_shape[1].value * \
+                pool_shape[2].value * \
+                pool_shape[3].value
+            flatten = tf.reshape(
+                layer.output(),
+                shape=[-1, img_vector_length]
+            )
+            fc_layer_0 = fc_layer(
+                input_x=flatten,
+                in_size=img_vector_length,
+                out_size=self.num_output,
+                rand_seed=seed,
+                activation_function=None
+            )
+            layers.append(fc_layer_0)
 
         # update class variables:
         self.layers = layers
