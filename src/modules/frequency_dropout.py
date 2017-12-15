@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 
 
-def frequency_dropout_mask(height, frequency_to_truncate_above):
+def _frequency_dropout_mask(height, frequency_to_truncate_above):
     """Create a mask to be used for frequency dropout.
 
     Args:
@@ -68,3 +68,31 @@ def frequency_dropout_mask(height, frequency_to_truncate_above):
         frequency_to_truncate_above
     ), tf.complex64)
     return dropout_mask
+
+
+def test_frequency_dropout(images, frequency_to_truncate_above):
+    """Demonstrate the use of _frequency_dropout_mask.
+
+    Args:
+        images: ndarray of shape (num_images, num_channels, height, width)
+        frequency_to_truncate_above: Tensor of shape (,) (i.e. scalar). All
+            frequencies above this will be set to zero. For an image with
+            a height of 32, a number above 16 will have no effect. For an
+            image with a height of 31, an input above 15 will have no effect.
+
+    Returns:
+        downsampled_images: ndarray of shape (num_images, num_channels,
+            height, widtdh).
+    """
+    assert len(images.shape) == 4
+    N, C, H, W = images.shape
+    assert H == W
+    frq_drop_mask = _frequency_dropout_mask(H, frequency_to_truncate_above)
+    tf_images = tf.constant(images, dtype=tf.complex64)
+    images_fft = tf.fft2d(tf_images)
+    images_trunc = images_fft * frq_drop_mask
+    images_back = tf.real(tf.ifft2d(images_trunc))
+    with tf.Session() as sess:
+        downsampled_images = sess.run(images_back)
+
+    return downsampled_images
