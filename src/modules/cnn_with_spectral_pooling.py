@@ -272,6 +272,7 @@ class CNN_Spectral_Pool(object):
     def train(self, X_train, y_train, X_val, y_val,
               batch_size=512, epochs=10, val_test_frq=1,
               extra_conv_layer=True,
+              use_global_averaging=True,
               model_name='test'):
         full_model_name = '{0}_{1}'.format(model_name, time.time())
         self.train_loss = []
@@ -286,7 +287,13 @@ class CNN_Spectral_Pool(object):
             lr = tf.placeholder(shape=[], dtype=tf.float32)
             train_phase = tf.placeholder(shape=(), dtype=tf.bool)
 
-        output, loss = self.build_graph(xs, ys, train_phase, extra_conv_layer)
+        output, loss = self.build_graph(
+            xs,
+            ys,
+            train_phase,
+            extra_conv_layer,
+            use_global_averaging,
+        )
         # print(type(loss))
         iters = int(X_train.shape[0] / batch_size)
         val_iters = int(X_val.shape[0] / batch_size)
