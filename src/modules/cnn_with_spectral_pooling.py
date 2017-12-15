@@ -143,7 +143,7 @@ class CNN_Spectral_Pool(object):
             sp_layer = spectral_pool_layer(input_x=in_x,
                                            filter_size=filter_size,
                                            m=m,
-                                           train_phase=False)
+                                           train_phase=train_phase)
             layers.append(sp_layer)
 
         # Add another conv layer:
@@ -353,10 +353,18 @@ class CNN_Spectral_Pool(object):
                     if valid_acc > best_acc:
                         print('\n\tBest validation accuracy! iteration:{} accuracy: {}%\n'.format(iter_total, valid_acc))
                         best_acc = valid_acc
-                        saver.save(sess, 'model/{}'.format(model_name))
+                        saver.save(sess, 'model/{}/{}'.format(
+                            model_name,
+                            full_model_name
+                        ))
 
-        print("Traning ends. The best valid accuracy is {:.3f}%. Model named: '{}'.".format(best_acc, model_name))
+        print("Best validation accuracy: {:.3f}%; Model name: '{}/{}'.".format(
+            best_acc,
+            model_name,
+            full_model_name
+        ))
 
+    # TODO: Put full_model_name in here
     def calc_test_accuracy(self, xtest, ytest, model_name='test'):
         # restore the last saved best model on this name:
         tf.reset_default_graph()

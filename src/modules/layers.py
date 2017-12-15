@@ -167,21 +167,27 @@ class spectral_pool_layer(object):
         with tf.variable_scope('spectral_pool_layer_{0}'.format(m)):
             im_fft = tf.fft2d(tf.cast(input_x, tf.complex64))
             im_transformed = _common_spectral_pool(im_fft, filter_size)
-            tf_random_cutoff = tf.random_uniform(
-                [],
-                freq_dropout_lower_bound,
-                freq_dropout_upper_bound
-            )
-            dropout_mask = _frequency_dropout_mask(
-                filter_size,
-                tf_random_cutoff
-            )
-            im_downsampled = tf.cond(
-                train_phase,
-                im_transformed * dropout_mask,
-                im_transformed
-            )
-            im_out = tf.real(tf.ifft2d(im_downsampled))
+            if (
+                freq_dropout_lower_bound is not None and
+                freq_dropout_upper_bound is not None
+            ):
+                tf_random_cutoff = tf.random_uniform(
+                    [],
+                    freq_dropout_lower_bound,
+                    freq_dropout_upper_bound
+                )
+                dropout_mask = _frequency_dropout_mask(
+                    filter_size,
+                    tf_random_cutoff
+                )
+                im_downsampled = tf.cond(
+                    train_phase,
+                    im_transformed * dropout_mask,
+                    im_transformed
+                )
+                im_out = tf.real(tf.ifft2d(im_downsampled))
+            else:
+                im_out = tf.real(tf.ifft2d(im_transformed))
 
         # THERE COULD BE A NORMALISING STEP HERE SIMILAR TO BATCH NORM BUT
         # I'M SKIPPING IT HERE
