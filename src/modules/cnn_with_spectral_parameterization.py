@@ -1,6 +1,7 @@
 from .layers import spectral_conv_layer, global_average_layer
 import numpy as np
 import tensorflow as tf
+from .image_generator import ImageGenerator
 
 class CNN_Spectral_Param():
 	def __init__(self,
@@ -43,6 +44,11 @@ class CNN_Spectral_Param():
 
 	def train(self, X_train, y_train, X_val, y_test,
 			  batch_size=512, epochs=10, val_test_frq=20):
+
+		img_gen = ImageGenerator(X_train, y_train)
+		img_gen.translate(shift_height=-2)
+		generator = img_gen.next_batch_gen(batch_size)
+
 		self.loss_vals = []
 		self.train_accuracy = []
 		with tf.name_scope('inputs'):
@@ -68,13 +74,22 @@ class CNN_Spectral_Param():
 				for epc in range(epochs):
 					print("epoch {} ".format(epc + 1))
 
+					if epc % 4 == 0 or epc % 4 == 1:
+						img_gen.translate(shift_height=2)
+					elif epc % 4 == 2 or epc % 4 == 3:
+						img_gen.translate(shift_height=-2)
+					else:
+						print('This is bad...')
+
+					if np.random.randint(2, size=1)[0] == 1:
+						img_gen.flip(mode='h')
+
+					img_gen.show()
+
 					for itr in range(iters):
 						iter_total += 1
 
-						training_batch_x = X_train[itr * batch_size:
-												   (1 + itr) * batch_size]
-						training_batch_y = y_train[itr * batch_size:
-												   (1 + itr) * batch_size]
+						training_batch_x, training_batch_y = next(generator)
 
 						_, cur_loss, train_eve = sess.run(
 											[step, loss, eve],
