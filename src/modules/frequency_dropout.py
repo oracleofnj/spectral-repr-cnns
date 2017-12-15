@@ -66,5 +66,5 @@ def frequency_dropout_mask(height, frequency_to_truncate_above):
     dropout_mask = tf.cast(tf.less_equal(
         comparison_mask,
         frequency_to_truncate_above
-    ), tf.float32)
+    ), tf.complex64)
     return dropout_mask
