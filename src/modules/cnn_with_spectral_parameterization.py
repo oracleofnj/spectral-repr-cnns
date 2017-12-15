@@ -84,8 +84,6 @@ class CNN_Spectral_Param():
 					if np.random.randint(2, size=1)[0] == 1:
 						img_gen.flip(mode='h')
 
-					img_gen.show()
-
 					for itr in range(iters):
 						iter_total += 1
 
