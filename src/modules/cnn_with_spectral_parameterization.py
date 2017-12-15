@@ -46,7 +46,7 @@ class CNN_Spectral_Param():
 			  batch_size=512, epochs=10, val_test_frq=20):
 
 		img_gen = ImageGenerator(X_train, y_train)
-		img_gen.translate(shift_height=-2)
+		img_gen.translate(shift_height=-2, shift_width=0)
 		generator = img_gen.next_batch_gen(batch_size)
 
 		self.loss_vals = []
@@ -75,9 +75,9 @@ class CNN_Spectral_Param():
 					print("epoch {} ".format(epc + 1))
 
 					if epc % 4 == 0 or epc % 4 == 1:
-						img_gen.translate(shift_height=2)
+						img_gen.translate(shift_height=2, shift_width=0)
 					elif epc % 4 == 2 or epc % 4 == 3:
-						img_gen.translate(shift_height=-2)
+						img_gen.translate(shift_height=-2, shift_width=0)
 					else:
 						print('This is bad...')
 
