@@ -82,9 +82,6 @@ class CNN_Spectral_Param():
 						self.loss_vals.append(cur_loss)
 						self.train_accuracy.append(1 - train_eve / batch_size)
 
-						if self.use_spectral_params:
-							self._correct_spectral_weights()
-
 					print(self.train_accuracy[-1])
 					print(self.loss_vals[-1])
 
