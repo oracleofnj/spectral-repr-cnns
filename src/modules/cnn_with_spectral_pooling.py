@@ -1,4 +1,4 @@
-from .layers import default_conv_layer, spectral_pool_layer
+from .layers import default_conv_layer, spectral_pool_layer, spectral_conv_layer
 from .layers import fc_layer, global_average_layer
 import numpy as np
 import tensorflow as tf
@@ -21,7 +21,8 @@ class CNN_Spectral_Pool(object):
                  lr_reduction_factor=0.1,
                  max_num_filters=288,
                  random_seed=0,
-                 verbose=False):
+                 verbose=False,
+                 use_spectral_parameterization=False):
         """Initialize model, defaults are set as per the optimum
         hyperparameters stated in the journal.
 
@@ -43,6 +44,7 @@ class CNN_Spectral_Pool(object):
         self.max_num_filters = max_num_filters
         self.random_seed = random_seed
         self.verbose = verbose
+        self.use_spectral_parameterization = use_spectral_parameterization
 
         # some internal variables:
         self.layers = []
@@ -142,12 +144,22 @@ class CNN_Spectral_Pool(object):
                 'conv',
                 (m, img_size, nchannel, nfilters, self.conv_filter_size)
             )
-            conv_layer = default_conv_layer(input_x=in_x,
-                                            in_channel=nchannel,
-                                            out_channel=nfilters,
-                                            kernel_shape=self.conv_filter_size,
-                                            rand_seed=seed,
-                                            m=m)
+            if self.use_spectral_parameterization:
+                conv_layer = spectral_conv_layer(input_x=in_x,
+                                                    in_channel=nchannel,
+                                                    out_channel=nfilters,
+                                                    kernel_size=self.conv_filter_size,
+                                                    random_seed=seed,
+                                                    m=m,
+                                                    data_format='NCHW')
+            else:
+                conv_layer = default_conv_layer(input_x=in_x,
+                                                in_channel=nchannel,
+                                                out_channel=nfilters,
+                                                kernel_shape=self.conv_filter_size,
+                                                rand_seed=seed,
+                                                m=m)
+
             layers.append(conv_layer)
             self.conv_layer_weights.append(conv_layer.weight)
 
@@ -182,13 +194,23 @@ class CNN_Spectral_Pool(object):
                 'conv',
                 (self.M + 1, img_size, nchannel, nfilters, 1)
             )
-            layer = default_conv_layer(input_x=in_x,
-                                       in_channel=nchannel,
-                                       out_channel=nfilters,
-                                       kernel_shape=1,
-                                       rand_seed=seed,
-                                       activation=tf.nn.relu,
-                                       m=self.M + 1)
+            if self.use_spectral_parameterization:
+                layer = spectral_conv_layer(input_x=in_x,
+                                            in_channel=nchannel,
+                                            out_channel=nfilters,
+                                            kernel_shape=1,
+                                            random_seed=seed,
+                                            m=self.M + 1,
+                                            data_format='NCHW')
+
+            else:
+                layer = default_conv_layer(input_x=in_x,
+                                           in_channel=nchannel,
+                                           out_channel=nfilters,
+                                           kernel_shape=1,
+                                           rand_seed=seed,
+                                           activation=tf.nn.relu,
+                                           m=self.M + 1)
             layers.append(layer)
 
         if use_global_averaging:

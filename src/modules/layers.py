@@ -278,7 +278,7 @@ def _glorot_sample(kernel_size, n_in, n_out, random_seed):
 
 class spectral_conv_layer(object):
     def __init__(self, input_x, in_channel, out_channel,
-                 kernel_size, random_seed, m=0):
+                 kernel_size, random_seed, data_format='NHWC', m=0):
         """
         NOTE: Image should be CHANNEL LAST
         :param input_x: Should be a 4D array like:
@@ -323,7 +323,8 @@ class spectral_conv_layer(object):
 
             conv_out = tf.nn.conv2d(input_x, spatial_weight,
                                     strides=[1, 1, 1, 1],
-                                    padding="SAME")
+                                    padding="SAME",
+                                    data_format=data_format)
             self.cell_out = tf.nn.relu(conv_out + bias)
 
     def output(self):

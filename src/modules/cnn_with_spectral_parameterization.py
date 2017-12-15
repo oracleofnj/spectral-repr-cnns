@@ -10,6 +10,7 @@ class CNN_Spectral_Param():
 		kernel_size=3,
 		l2_norm=0.01,
 		learning_rate=1e-4,
+		data_format='NHWC',
 		random_seed=0):
 
 		self.num_output = num_output
