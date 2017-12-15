@@ -8,7 +8,7 @@ import tensorflow as tf
 class default_conv_layer(object):
     def __init__(self, input_x, in_channel, out_channel,
                  kernel_shape, rand_seed,
-                 activation=tf.nn.relu,
+                 activation=None,
                  m=0):
         """
         NOTE: Image should be CHANNEL FIRST
@@ -120,6 +120,7 @@ class fc_layer(object):
             self.cell_out = cell_out
 
     def output(self):
+        """Return layer output."""
         return self.cell_out
 
 
@@ -132,6 +133,7 @@ class spectral_pool_layer(object):
         filter_size=3,
         freq_dropout_lower_bound=None,
         freq_dropout_upper_bound=None,
+        activation=tf.nn.relu,
         m=0,
         train_phase=False
     ):
@@ -195,6 +197,12 @@ class spectral_pool_layer(object):
             else:
                 im_out = tf.real(tf.ifft2d(im_transformed))
 
+            if activation is not None:
+                cell_out = activation(im_out)
+            else:
+                cell_out = im_out
+            tf.summary.histogram('sp_layer/{}/activation'.format(m), cell_out)
+
         # THERE COULD BE A NORMALISING STEP HERE SIMILAR TO BATCH NORM BUT
         # I'M SKIPPING IT HERE
         # im_channel_last = tf.transpose(tf.real(tf.ifft2d(im_ishift)),
@@ -205,7 +213,8 @@ class spectral_pool_layer(object):
         # channel_min = tf.reduce_min(im_channel_last, axis=(0, 1, 2))
         # im_out = tf.divide(im_channel_last - channel_min,
         #                    channel_max - channel_min)
-        self.cell_out = im_out
+
+        self.cell_out = cell_out
 
     def output(self):
         return self.cell_out

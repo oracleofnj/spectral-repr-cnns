@@ -151,7 +151,6 @@ class CNN_Spectral_Pool(object):
             layers.append(conv_layer)
             self.conv_layer_weights.append(conv_layer.weight)
 
-            # TODO: implement frequency dropout
             in_x = conv_layer.output()
             _, _, img_size, _ = in_x.get_shape().as_list()
             filter_size = self._get_sp_dim(img_size)
@@ -188,6 +187,7 @@ class CNN_Spectral_Pool(object):
                                        out_channel=nfilters,
                                        kernel_shape=1,
                                        rand_seed=seed,
+                                       activation=tf.nn.relu,
                                        m=self.M + 1)
             layers.append(layer)
 
@@ -273,7 +273,8 @@ class CNN_Spectral_Pool(object):
               batch_size=512, epochs=10, val_test_frq=1,
               extra_conv_layer=True,
               use_global_averaging=True,
-              model_name='test'):
+              model_name='test',
+              restore_checkpoint=None):
         full_model_name = '{0}_{1}'.format(model_name, time.time())
         self.train_loss = []
         self.val_loss = []
@@ -318,6 +319,10 @@ class CNN_Spectral_Pool(object):
             saver = tf.train.Saver()
 
             sess.run(init)
+
+            if restore_checkpoint is not None:
+                print("Restarting training from checkpoint")
+                saver.restore(sess, 'model/{}'.format(restore_checkpoint))
 
             iter_total = 0
             best_acc = 0
@@ -404,8 +409,14 @@ class CNN_Spectral_Pool(object):
             full_model_name
         ))
 
-    # TODO: Put full_model_name in here
-    def calc_test_accuracy(self, xtest, ytest, model_name='test'):
+    def calc_test_accuracy(
+        self,
+        xtest,
+        ytest,
+        full_model_name,
+        batch_size=500
+    ):
+        """Calculate accuracy for a test set."""
         # restore the last saved best model on this name:
         tf.reset_default_graph()
         with tf.name_scope('inputs'):
@@ -415,6 +426,10 @@ class CNN_Spectral_Pool(object):
 
         output, _ = self.build_graph(xs, ys, train_phase)
         eve = self.evaluate(output, ys)
+        iters = int(xtest.shape[0] / batch_size)
+        print('number of batches for testing: {}'.format(
+            iters
+        ))
 
         init = tf.global_variables_initializer()
         with tf.Session() as sess:
@@ -422,12 +437,19 @@ class CNN_Spectral_Pool(object):
             sess.run(init)
             # restore the pre_trained
             print("Loading pre-trained model")
-            saver.restore(sess, 'model/{}'.format(model_name))
-
-            test_eve = sess.run(eve,
-                                feed_dict={
-                                xs: xtest,
-                                ys: ytest,
-                                train_phase: False})
-            test_acc = 100 - test_eve * 100 / ytest.shape[0]
+            saver.restore(sess, 'model/{}'.format(full_model_name))
+            test_eves = []
+            for itr in range(iters):
+                X_batch = xtest[itr * batch_size:
+                                (1 + itr) * batch_size]
+                y_batch = ytest[itr * batch_size:
+                                (1 + itr) * batch_size]
+                test_iter_eve = sess.run(eve, feed_dict={
+                    xs: X_batch,
+                    ys: y_batch,
+                    train_phase: False
+                })
+                test_eves.append(test_iter_eve)
+            test_eve = np.mean(test_eves)
+            test_acc = 100 - test_eve * 100 / y_batch.shape[0]
             print('Test accuracy: {:.3f}'.format(test_acc))
