@@ -63,8 +63,8 @@ def frequency_dropout_mask(height, frequency_to_truncate_above):
     highest_frequency = np.maximum(xs, ys)
 
     comparison_mask = tf.constant(highest_frequency)
-    dropout_mask = tf.less_equal(
+    dropout_mask = tf.cast(tf.less_equal(
         comparison_mask,
         frequency_to_truncate_above
-    )
+    ), tf.float32)
     return dropout_mask
