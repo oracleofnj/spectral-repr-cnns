@@ -171,11 +171,6 @@ class spectral_pool_layer(object):
                 freq_dropout_lower_bound is not None and
                 freq_dropout_upper_bound is not None
             ):
-                print('Using Dropout: {0}-{1}'.format(
-                    freq_dropout_lower_bound,
-                    freq_dropout_upper_bound
-                ))
-                print(train_phase)
                 tf_random_cutoff = tf.random_uniform(
                     [],
                     freq_dropout_lower_bound,
