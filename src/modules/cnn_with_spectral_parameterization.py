@@ -70,9 +70,6 @@ class CNN_Spectral_Param():
 					for itr in range(iters):
 						iter_total += 1
 
-						# print(sess.run(tf.get_default_graph().get_tensor_by_name('spec_conv_layer_1/real_1:0')[:,:,0,3]))
-						# print(sess.run(tf.get_default_graph().get_tensor_by_name('spec_conv_layer_1/imag_1:0')[:,:,0,3]))
-
 						training_batch_x = X_train[itr * batch_size:
 												   (1 + itr) * batch_size]
 						training_batch_y = y_train[itr * batch_size:
