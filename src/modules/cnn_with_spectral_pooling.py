@@ -80,8 +80,12 @@ class CNN_Spectral_Pool(object):
         """
         c = self.alpha + (m / self.M) * (self.beta - self.alpha)
 
-        freq_dropout_lower_bound = c * (1 + n // 2)
-        freq_dropout_upper_bound = (1 + n // 2)
+        # freq_dropout_lower_bound = c * (1. + n // 2)
+        # freq_dropout_upper_bound = (1. + n // 2)
+
+        # For testing purposes
+        freq_dropout_lower_bound = self.alpha * (1. + n // 2)
+        freq_dropout_upper_bound = self.beta * (1. + n // 2)
 
         return freq_dropout_lower_bound, freq_dropout_upper_bound
         # ll = int(c * n)
@@ -245,9 +249,9 @@ class CNN_Spectral_Pool(object):
         # return global_average_0.output(), loss
         return layers[-1].output(), loss
 
-    def train_step(self, loss):
+    def train_step(self, loss, lr):
         with tf.name_scope('train_step'):
-            step = tf.train.AdamOptimizer(self._learning_rate).minimize(loss)
+            step = tf.train.AdamOptimizer(lr).minimize(loss)
 
         return step
 
@@ -272,6 +276,7 @@ class CNN_Spectral_Pool(object):
         with tf.name_scope('inputs'):
             xs = tf.placeholder(shape=[None, 3, 32, 32], dtype=tf.float32)
             ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
+            lr = tf.placeholder(shape=[], dtype=tf.float32)
             train_phase = tf.placeholder(shape=(), dtype=tf.bool)
 
         output, loss = self.build_graph(xs, ys, train_phase, extra_conv_layer)
@@ -285,7 +290,7 @@ class CNN_Spectral_Pool(object):
 
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
-            step = self.train_step(loss)
+            step = self.train_step(loss, lr)
         eve = self.evaluate(output, ys)
 
         init = tf.global_variables_initializer()
@@ -325,6 +330,7 @@ class CNN_Spectral_Pool(object):
                                         [step, loss, eve],
                                         feed_dict={xs: training_batch_x,
                                                    ys: training_batch_y,
+                                                   lr: self._learning_rate,
                                                    train_phase: True})
                     self.train_loss.append(cur_loss)
 
