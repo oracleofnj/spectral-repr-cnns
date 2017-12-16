@@ -107,6 +107,7 @@ ENV/
 *.sublime*
 
 # no data:
-*cifar*
+cifar-*-batches-py/
+*cifar*tar.gz
 log/
 model/
