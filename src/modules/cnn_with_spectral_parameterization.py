@@ -51,6 +51,7 @@ class CNN_Spectral_Param():
 
 		self.loss_vals = []
 		self.train_accuracy = []
+		self.error_rate = []
 		with tf.name_scope('inputs'):
 			xs = tf.placeholder(shape=[None, 32, 32, 3], dtype=tf.float32)
 			ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
@@ -86,20 +87,24 @@ class CNN_Spectral_Param():
 
 					loss_in_epoch = []
 					train_acc_in_epoch = []
+					error_rate_in_epoch = []
 					for itr in range(iters):
 						iter_total += 1
 
 						training_batch_x, training_batch_y = next(generator)
 
-						_, cur_loss, train_eve = sess.run(
+						_, cur_loss, error_num = sess.run(
 											[step, loss, eve],
 											feed_dict={xs: training_batch_x,
 													   ys: training_batch_y})
 						loss_in_epoch.append(cur_loss)
-						train_acc_in_epoch.append(1 - train_eve / batch_size)
+						train_acc_in_epoch.append(1 - error_num / batch_size)
+						error_rate_in_epoch.append(error_num / batch_size)
 
 					self.loss_vals.append(np.mean(loss_in_epoch))
 					self.train_accuracy.append(np.mean(train_acc_in_epoch))
+					self.error_rate.append(np.mean(error_rate_in_epoch))
+
 					print(self.train_accuracy[-1])
 					print(self.loss_vals[-1])
 
@@ -327,5 +332,5 @@ class CNN_Spectral_Param():
 				name='cross_entropy')
 			loss = tf.add(cross_entropy_loss, self.l2_norm * l2_loss, name='loss')
 
-		return global_avg, loss
+		return global_avg, cross_entropy_loss
 
