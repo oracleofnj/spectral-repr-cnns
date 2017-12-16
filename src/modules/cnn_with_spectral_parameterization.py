@@ -173,8 +173,8 @@ class CNN_Spectral_Param():
 				conv_kernels = [v for v in tf.trainable_variables() if 'kernel' in v.name]
 				l2_loss = tf.reduce_sum([tf.norm(w, axis=[-2, -1]) for w in conv_kernels])
 
-			l2_loss = tf.reduce_sum([tf.norm(w) for w in fc_weights])
-			
+			l2_loss += tf.reduce_sum([tf.norm(w) for w in fc_weights])
+
 			label = tf.one_hot(input_y, self.num_output)
 			cross_entropy_loss = tf.reduce_mean(
 				tf.nn.softmax_cross_entropy_with_logits(labels=label, logits=fc3),
@@ -321,8 +321,6 @@ class CNN_Spectral_Param():
 				l2_loss = tf.reduce_sum([tf.norm(w, axis=[-2, -1]) for w in conv_kernels if w.shape[0] == 3])
 				l2_loss += tf.reduce_sum([tf.norm(w, axis=[-2, -1]) for w in conv_kernels if w.shape[0] == 1])
 
-			l2_loss = tf.reduce_sum([tf.norm(w) for w in fc_weights])
-			
 			label = tf.one_hot(input_y, self.num_output)
 			cross_entropy_loss = tf.reduce_mean(
 				tf.nn.softmax_cross_entropy_with_logits(labels=label, logits=global_avg),
