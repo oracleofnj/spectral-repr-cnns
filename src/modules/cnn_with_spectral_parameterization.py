@@ -4,6 +4,10 @@ import tensorflow as tf
 from .image_generator import ImageGenerator
 
 class CNN_Spectral_Param():
+	"""
+	This class builds and trains the generic and deep CNN architectures 
+	as described in section 5.2 of the paper with and without spectral pooling.
+	"""
 	def __init__(self,
 		num_output=10,
 		architecture='generic',
@@ -13,7 +17,16 @@ class CNN_Spectral_Param():
 		learning_rate=1e-4,
 		data_format='NHWC',
 		random_seed=0):
-
+		"""
+		:param num_output: Number of classes to predict
+		:param arcchitecture: Defines which architecture to build (either deep or generic)
+		:param use_spectral_params: Flag to turn spectral parameterization on and off
+		:param kernel_size: size of convolutional kernel
+		:param l2_norm: Scale factor for l2 norm of CNN weights when calculating l2 loss
+		:learning_rate: Learning rate for Adam AdamOptimizer
+		:data_format: Format of input images, either 'NHWC' or 'NCHW'
+		:random_seed: Seed for initializers to create reproducable results
+		"""
 		self.num_output = num_output
 		self.architecture = architecture
 		self.use_spectral_params = use_spectral_params
@@ -23,6 +36,12 @@ class CNN_Spectral_Param():
 		self.random_seed = random_seed
 
 	def build_graph(self, input_x, input_y):
+		"""
+		This function calls one of two helper functions to build the CNN graph
+
+		:param input_x: 4D array containing images to train model on
+		:param input_y: 1D array containing class labels of images
+		"""
 		if self.architecture == 'generic':
 			return self._build_generic_architecture(input_x, input_y)
 		elif self.architecture == 'deep':
@@ -31,24 +50,46 @@ class CNN_Spectral_Param():
 			raise Exception('Architecture \'' + self.architecture + '\' not defined')
 
 	def train_step(self, loss):
+		"""
+		Calls Adam optimizer to minimize inputted loss
+
+		:param loss: the loss to minimize
+		"""
 		with tf.name_scope('train_step'):
 			step = tf.train.AdamOptimizer(self.learning_rate).minimize(loss)
 
 		return step
 
 	def evaluate(self, pred, input_y):
+		"""
+		Calculates the number of errors made in the prediction array and returns them
+
+		:param pred: The prediction array for the class labels
+		:param input_y: The ground-truth y values
+		"""
 		with tf.name_scope('evaluate'):
 			error_num = tf.count_nonzero(pred - input_y, name='error_num')
 			tf.summary.scalar('LeNet_error_num', error_num)
 		return error_num
 
-	def train(self, X_train, y_train, X_val, y_test,
-			  batch_size=512, epochs=10, val_test_frq=20):
+	def train(self, X_train, y_train, batch_size=512, epochs=10):
+		"""
+		Trains the CNN model. This is where data augmentation is added and
+		the training accuracy is tracked.
 
+		:param X_train: 4D training set (num images, height, width, num channels)
+		:param y_train: 1D training labels
+		:param batch_size: Number of images to include in the minibatch,
+		before applying gradient updates
+		:param epochs: Number of epochs to train the model for
+		"""
+
+		# Instantiate image generator for data augmentation
 		img_gen = ImageGenerator(X_train, y_train)
 		img_gen.translate(shift_height=-2, shift_width=0)
 		generator = img_gen.next_batch_gen(batch_size)
 
+		# Variables to track different metrics we're interested in
 		self.loss_vals = []
 		self.train_accuracy = []
 		self.error_rate = []
@@ -75,6 +116,7 @@ class CNN_Spectral_Param():
 				for epc in range(epochs):
 					print("epoch {} ".format(epc + 1))
 
+					# Apply vertical translations and random horizontal flips
 					if epc % 4 == 0 or epc % 4 == 1:
 						img_gen.translate(shift_height=2, shift_width=0)
 					elif epc % 4 == 2 or epc % 4 == 3:
@@ -110,8 +152,19 @@ class CNN_Spectral_Param():
 					print('Loss:',self.loss_vals[-1])
 
 	def _build_generic_architecture(self, input_x, input_y):
+		"""
+		Builds the generic architecture (defined in section 5.2 of the paper)
+
+		This architecture is a pair of convolution and max-pool layers, followed
+		by three fully-connected layers and a softmax.
+
+		:param input_x: 4D training set
+		:param input_y: 1D training labels
+		"""
 		spatial_conv_weights = []
 
+		# These if statements decide whether we'll use spectral convolution or 
+		# the built-in tensorflow convolutional layer
 		if self.use_spectral_params:
 			sc_layer = spectral_conv_layer(input_x=input_x,
 										in_channel=3,
@@ -173,6 +226,7 @@ class CNN_Spectral_Param():
 		fc_weights = [v for v in tf.trainable_variables() if 'weights' in v.name]
 
 		with tf.name_scope("loss"):
+			# Calculating l2 norms for the loss
 			if self.use_spectral_params:
 				l2_loss = tf.reduce_sum([tf.norm(w, axis=[-2, -1]) for w in spatial_conv_weights])
 			else:
@@ -181,17 +235,30 @@ class CNN_Spectral_Param():
 
 			l2_loss += tf.reduce_sum([tf.norm(w) for w in fc_weights])
 
+			# Calculating cross entropy loss
 			label = tf.one_hot(input_y, self.num_output)
 			cross_entropy_loss = tf.reduce_mean(
 				tf.nn.softmax_cross_entropy_with_logits(labels=label, logits=fc3),
 				name='cross_entropy')
 			loss = tf.add(cross_entropy_loss, self.l2_norm * l2_loss, name='loss')
 
+		# Returns output of the final layer as well as the loss
 		return fc3, loss
 
 	def _build_deep_architecture(self, input_x, input_y):
+		"""
+		Builds the deep architecture (defined in section 5.2 of the paper)
+
+		This architecture is defined as follows:
+			back-to-back convolutions, max-pool, back-to-back-to-back convolutions,
+			max-pool, back-to-back 1-filter convolutions, and a global averaging
+
+		:param input_x: 4D training set
+		:param input_y: 1D training labels
+		"""
 		spatial_conv_weights = []
 
+		# Again, these if-statements determine whether to use spectral conv or default
 		if self.use_spectral_params:
 			sc_layer = spectral_conv_layer(input_x=input_x,
 											in_channel=3,

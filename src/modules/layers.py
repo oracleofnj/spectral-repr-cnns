@@ -24,24 +24,6 @@ class default_conv_layer(object):
         assert input_x.shape[2] == input_x.shape[3]
         assert input_x.shape[1] == in_channel
 
-        # Alternative using layers but not using it
-        # with tf.variable_scope('conv_layer_{0}'.format(m)):
-        # conv_out = tf.layers.conv2d(
-        #                 inputs=input_x,
-        #                 filters=out_channel,
-        #                 kernel_size=kernel_shape,
-        #                 strides=(1, 1),
-        #                 padding='valid',
-        #                 data_format='channels_first',
-        #                 activation=tf.nn.relu,
-        #                 use_bias=True,
-        #                 kernel_initializer=tf.glorot_uniform_initializer(
-        #                                                 seed=rand_seed),
-        #                 bias_initializer=tf.glorot_uniform_initializer(
-        #                                                 seed=rand_seed),
-        #                 name='conv_layer_{0}'.format(m),
-        #                 trainable=True
-        #                             )
         with tf.variable_scope('conv_layer_{0}'.format(m)):
             with tf.name_scope('conv_kernel'):
                 w_shape = [kernel_shape, kernel_shape, in_channel, out_channel]
@@ -74,9 +56,18 @@ class default_conv_layer(object):
 
             self.cell_out = cell_out
 
-            tf.summary.histogram('conv_layer/{}/kernel'.format(m), weight)
-            tf.summary.histogram('conv_layer/{}/bias'.format(m), bias)
-            tf.summary.histogram('conv_layer/{}/activation'.format(m), cell_out)
+            tf.summary.histogram(
+                'conv_layer/{}/kernel'.format(m),
+                weight
+            )
+            tf.summary.histogram(
+                'conv_layer/{}/bias'.format(m),
+                bias
+            )
+            tf.summary.histogram(
+                'conv_layer/{}/activation'.format(m),
+                cell_out
+            )
 
     def output(self):
         return self.cell_out
@@ -86,14 +77,17 @@ class fc_layer(object):
     def __init__(self, input_x, in_size, out_size, rand_seed,
                  activation_function=None, m=0):
         """
-        :param input_x: The input of the FC layer. It should be a flatten vector.
+        :param input_x: The input of the FC layer. It should be a
+            flatten vector.
         :param in_size: The length of input vector.
         :param out_size: The length of output vector.
-        :param rand_seed: An integer that presents the random seed used to generate the initial parameter value.
-        :param keep_prob: The probability of dropout. Default set by 1.0 (no drop-out applied)
-        :param activation_function: The activation function for the output. Default set to None.
+        :param rand_seed: An integer that presents the random seed used
+            to generate the initial parameter value.
+        :param keep_prob: The probability of dropout. Default set by
+            1.0 (no drop-out applied)
+        :param activation_function: The activation function
+            for the output. Default set to None.
         :param index: The index of the layer. It is used for naming only.
-
         """
         with tf.variable_scope('fc_layer_{0}'.format(m)):
             with tf.name_scope('fc_kernel'):
@@ -162,12 +156,17 @@ class spectral_pool_layer(object):
         assert H == W
 
         with tf.variable_scope('spectral_pool_layer_{0}'.format(m)):
+            # Compute the Fourier transform of the image
             im_fft = tf.fft2d(tf.cast(input_x, tf.complex64))
+
+            # Truncate the spectrum
             im_transformed = _common_spectral_pool(im_fft, filter_size)
             if (
                 freq_dropout_lower_bound is not None and
                 freq_dropout_upper_bound is not None
             ):
+                # If we are in the training phase, we need to drop all
+                # frequencies above a certain randomly determined level.
                 def true_fn():
                     tf_random_cutoff = tf.random_uniform(
                         [],
@@ -180,6 +179,8 @@ class spectral_pool_layer(object):
                     )
                     return im_transformed * dropout_mask
 
+                # In the testing phase, return the truncated frequency
+                # matrix unchanged.
                 def false_fn():
                     return im_transformed
 
@@ -198,77 +199,11 @@ class spectral_pool_layer(object):
                 cell_out = im_out
             tf.summary.histogram('sp_layer/{}/activation'.format(m), cell_out)
 
-        # THERE COULD BE A NORMALISING STEP HERE SIMILAR TO BATCH NORM BUT
-        # I'M SKIPPING IT HERE
-        # im_channel_last = tf.transpose(tf.real(tf.ifft2d(im_ishift)),
-        #                                perm=[0, 2, 3, 1])
-
-        # # normalize image:
-        # channel_max = tf.reduce_max(im_channel_last, axis=(0, 1, 2))
-        # channel_min = tf.reduce_min(im_channel_last, axis=(0, 1, 2))
-        # im_out = tf.divide(im_channel_last - channel_min,
-        #                    channel_max - channel_min)
-
         self.cell_out = cell_out
 
     def output(self):
         return self.cell_out
 
-    def _freq_dropout_matrix(self):
-        """Create a matrix to be multiplied to implement freq dropout.
-        Its a 1s matrix with values after freq_dropout made 0"""
-        fft_shape = self.fft_shape
-        freq_dropout = self.freq_dropout
-        out = np.zeros(shape=fft_shape[1:],
-                       dtype=np.complex64)
-        start = int((fft_shape[-1] - freq_dropout)/2)
-        end = freq_dropout + start
-        out[:, start:end, start:end] = 1
-        return out
-
-    def _no_dropout_matrix(self):
-        return np.ones(shape=self.fft_shape[1:],
-                       dtype=np.complex64)
-
-    def _tfshift(self, matrix, n, axis=1, invert=False):
-        """Handler for shifting one axis at a time.
-        Helpful for fftshift if invert is False and ifftshift otherwise
-        """
-        if invert:
-            mid = n - (n + 1) // 2
-        else:
-            mid = (n + 1) // 2
-        if axis == 1:
-            start = [0, 0, 0, mid]
-            end = [-1, -1, -1, mid]
-        else:
-            start = [0, 0, mid, 0]
-            end = [-1, -1, mid, -1]
-        out = tf.concat([tf.slice(matrix, start, [-1, -1, -1, -1]),
-                         tf.slice(matrix, [0, 0, 0, 0], end)], axis + 2)
-        return out
-
-    def _tf_fftshift(self, matrix, n):
-        """Performs similar function to numpy's fftshift
-        Note: Takes image as a channel first numpy array of shape:
-            (batch_size, channels, height, width)
-        """
-        mat = self._tfshift(matrix, n, 1)
-        mat2 = self._tfshift(mat, n, 0)
-        return mat2
-
-    def _tf_ifftshift(self, matrix, n):
-        """Performs similar function to numpy's ifftshift
-        Note: Takes image as a channel first numpy array of shape:
-            (batch_size, channels, height, width)
-        """
-        mat = self._tfshift(matrix, n, 1, invert=True)
-        mat2 = self._tfshift(mat, n, 0, invert=True)
-        return mat2
-
-def _glorot_sample(kernel_size, n_in, n_out):
-        limit = np.sqrt(6 / (n_in + n_out))
-        return np.random.uniform(low=-limit, high=limit, size=(n_in, n_out, kernel_size, kernel_size))
 
 class spectral_conv_layer(object):
     def __init__(self, input_x, in_channel, out_channel,
@@ -287,10 +222,21 @@ class spectral_conv_layer(object):
         assert input_x.shape[1] == input_x.shape[2]
         assert input_x.shape[3] == in_channel
 
+        def _glorot_sample(kernel_size, n_in, n_out):
+            limit = np.sqrt(6 / (n_in + n_out))
+            return np.random.uniform(
+                low=-limit,
+                high=limit,
+                size=(n_in, n_out, kernel_size, kernel_size)
+            )
+
         with tf.variable_scope('spec_conv_layer_{0}'.format(m)):
             with tf.name_scope('spec_conv_kernel'):
                 samp = _glorot_sample(kernel_size, in_channel, out_channel)
-                spectral_weight_init = tf.transpose(tf.fft2d(samp), [2,3,0,1])
+                spectral_weight_init = tf.transpose(
+                    tf.fft2d(samp),
+                    [2, 3, 0, 1]
+                )
 
                 real_init = tf.get_variable(
                     name='real_{0}'.format(m),
@@ -300,7 +246,11 @@ class spectral_conv_layer(object):
                     name='imag_{0}'.format(m),
                     initializer=tf.imag(spectral_weight_init))
 
-                spectral_weight = tf.complex(real_init, imag_init, name='spectral_weight_{0}'.format(m))
+                spectral_weight = tf.complex(
+                    real_init,
+                    imag_init,
+                    name='spectral_weight_{0}'.format(m)
+                )
                 self.spectral_weight = spectral_weight
 
             with tf.variable_scope('conv_bias'):
@@ -308,11 +258,19 @@ class spectral_conv_layer(object):
                 bias = tf.get_variable(
                     name='conv_bias_{0}'.format(m),
                     shape=b_shape,
-                    initializer=tf.glorot_uniform_initializer(seed=random_seed))
+                    initializer=tf.glorot_uniform_initializer(
+                        seed=random_seed
+                    ))
                 self.bias = bias
 
-            complex_spatial_weight = tf.transpose(tf.ifft2d(tf.transpose(spectral_weight, [2,3,0,1])), [2,3,0,1])
-            spatial_weight = tf.real(complex_spatial_weight, name='spatial_weight_{0}'.format(m))
+            complex_spatial_weight = tf.transpose(tf.ifft2d(tf.transpose(
+                spectral_weight, [2, 3, 0, 1])),
+                [2, 3, 0, 1]
+            )
+            spatial_weight = tf.real(
+                complex_spatial_weight,
+                name='spatial_weight_{0}'.format(m)
+            )
             self.weight = spatial_weight
 
             conv_out = tf.nn.conv2d(input_x, spatial_weight,
@@ -323,6 +281,7 @@ class spectral_conv_layer(object):
 
     def output(self):
         return self.cell_out
+
 
 class global_average_layer(object):
     def __init__(self, input_x, m=0):
