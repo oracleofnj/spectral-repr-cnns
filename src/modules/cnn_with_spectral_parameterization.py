@@ -310,7 +310,7 @@ class CNN_Spectral_Param():
 										activation=None,
 										name='conv7')
 
-		global_avg = global_average_layer(input_x=conv7).output()
+		global_avg = tf.reduce_mean(input_tensor=conv7, axis=[1,2])
 
 		with tf.name_scope("loss"):
 			if self.use_spectral_params:
