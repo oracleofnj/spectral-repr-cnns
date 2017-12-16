@@ -400,5 +400,5 @@ class CNN_Spectral_Param():
 				name='cross_entropy')
 			loss = tf.add(cross_entropy_loss, self.l2_norm * l2_loss, name='loss')
 
-		return global_avg, cross_entropy_loss
+		return global_avg, loss
 
