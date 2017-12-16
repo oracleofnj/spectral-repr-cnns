@@ -63,11 +63,8 @@ class CNN_Spectral_Pool(object):
             n: size of image in layer
         """
         fsize = int(self.gamma * n)
-        # make odd if even
-        if fsize % 2 == 0:
-            fsize -= 1
-        # minimum size is 1:
-        return max(1, fsize)
+        # minimum size is 3:
+        return max(3, fsize)
 
     def _get_frq_dropout_bounds(self, n, m):
         """Get the bounds for frequency dropout.
@@ -82,12 +79,8 @@ class CNN_Spectral_Pool(object):
         """
         c = self.alpha + (m / self.M) * (self.beta - self.alpha)
 
-        # freq_dropout_lower_bound = c * (1. + n // 2)
-        # freq_dropout_upper_bound = (1. + n // 2)
-
-        # For testing purposes
-        freq_dropout_lower_bound = self.alpha * (1. + n // 2)
-        freq_dropout_upper_bound = self.beta * (1. + n // 2)
+        freq_dropout_lower_bound = c * (1. + n // 2)
+        freq_dropout_upper_bound = (1. + n // 2)
 
         return freq_dropout_lower_bound, freq_dropout_upper_bound
         # ll = int(c * n)
