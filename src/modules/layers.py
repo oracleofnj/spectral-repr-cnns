@@ -56,9 +56,18 @@ class default_conv_layer(object):
 
             self.cell_out = cell_out
 
-            tf.summary.histogram('conv_layer/{}/kernel'.format(m), weight)
-            tf.summary.histogram('conv_layer/{}/bias'.format(m), bias)
-            tf.summary.histogram('conv_layer/{}/activation'.format(m), cell_out)
+            tf.summary.histogram(
+                'conv_layer/{}/kernel'.format(m),
+                weight
+            )
+            tf.summary.histogram(
+                'conv_layer/{}/bias'.format(m),
+                bias
+            )
+            tf.summary.histogram(
+                'conv_layer/{}/activation'.format(m),
+                cell_out
+            )
 
     def output(self):
         return self.cell_out
@@ -68,14 +77,17 @@ class fc_layer(object):
     def __init__(self, input_x, in_size, out_size, rand_seed,
                  activation_function=None, m=0):
         """
-        :param input_x: The input of the FC layer. It should be a flatten vector.
+        :param input_x: The input of the FC layer. It should be a
+            flatten vector.
         :param in_size: The length of input vector.
         :param out_size: The length of output vector.
-        :param rand_seed: An integer that presents the random seed used to generate the initial parameter value.
-        :param keep_prob: The probability of dropout. Default set by 1.0 (no drop-out applied)
-        :param activation_function: The activation function for the output. Default set to None.
+        :param rand_seed: An integer that presents the random seed used
+            to generate the initial parameter value.
+        :param keep_prob: The probability of dropout. Default set by
+            1.0 (no drop-out applied)
+        :param activation_function: The activation function
+            for the output. Default set to None.
         :param index: The index of the layer. It is used for naming only.
-
         """
         with tf.variable_scope('fc_layer_{0}'.format(m)):
             with tf.name_scope('fc_kernel'):
