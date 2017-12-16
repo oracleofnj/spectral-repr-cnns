@@ -105,8 +105,9 @@ class CNN_Spectral_Param():
 					self.train_accuracy.append(np.mean(train_acc_in_epoch))
 					self.error_rate.append(np.mean(error_rate_in_epoch))
 
-					print(self.train_accuracy[-1])
-					print(self.loss_vals[-1])
+					print('Error rate:',self.error_rate[-1])
+					print('Train acc:',self.train_accuracy[-1])
+					print('Loss:',self.loss_vals[-1])
 
 	def _build_generic_architecture(self, input_x, input_y):
 		spatial_conv_weights = []
