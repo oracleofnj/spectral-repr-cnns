@@ -84,6 +84,8 @@ class CNN_Spectral_Param():
 					if np.random.randint(2, size=1)[0] == 1:
 						img_gen.flip(mode='h')
 
+					loss_in_epoch = []
+					train_acc_in_epoch = []
 					for itr in range(iters):
 						iter_total += 1
 
@@ -93,9 +95,11 @@ class CNN_Spectral_Param():
 											[step, loss, eve],
 											feed_dict={xs: training_batch_x,
 													   ys: training_batch_y})
-						self.loss_vals.append(cur_loss)
-						self.train_accuracy.append(1 - train_eve / batch_size)
+						loss_in_epoch.append(cur_loss)
+						train_acc_in_epoch.append(1 - train_eve / batch_size)
 
+					self.loss_vals.append(np.mean(loss_in_epoch))
+					self.train_accuracy.append(np.mean(train_acc_in_epoch))
 					print(self.train_accuracy[-1])
 					print(self.loss_vals[-1])
 
