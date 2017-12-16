@@ -35,8 +35,7 @@ def download_cifar10(download_100=False):
 
 def load_cifar10(num_batches=5,
                  get_test_data=True,
-                 channels_last=True,
-                 load_100=False):
+                 channels_last=True):
     """Load the cifar data.
 
     Args:
@@ -51,13 +50,10 @@ def load_cifar10(num_batches=5,
     """
     assert num_batches <= 5
     # download if not exists:
-    download_cifar10(load_100)
+    download_cifar10()
 
     # load batches in order:
-    if load_100:
-        dirpath = os.path.join(BASE_DIR, 'cifar-100-batches-py')
-    else:
-        dirpath = os.path.join(BASE_DIR, 'cifar-10-batches-py')
+    dirpath = os.path.join(BASE_DIR, 'cifar-10-batches-py')
     images = None
     for i in range(1, num_batches + 1):
         print('getting batch {0}'.format(i))
