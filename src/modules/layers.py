@@ -266,14 +266,13 @@ class spectral_pool_layer(object):
         mat2 = self._tfshift(mat, n, 0, invert=True)
         return mat2
 
-def _glorot_sample(kernel_size, n_in, n_out, random_seed):
-        np.random.seed(random_seed)
+def _glorot_sample(kernel_size, n_in, n_out):
         limit = np.sqrt(6 / (n_in + n_out))
         return np.random.uniform(low=-limit, high=limit, size=(n_in, n_out, kernel_size, kernel_size))
 
 class spectral_conv_layer(object):
     def __init__(self, input_x, in_channel, out_channel,
-                 kernel_size, random_seed, m=0):
+                 kernel_size, random_seed, data_format='NHWC', m=0):
         """
         NOTE: Image should be CHANNEL LAST
         :param input_x: Should be a 4D array like:
@@ -290,7 +289,7 @@ class spectral_conv_layer(object):
 
         with tf.variable_scope('spec_conv_layer_{0}'.format(m)):
             with tf.name_scope('spec_conv_kernel'):
-                samp = _glorot_sample(kernel_size, in_channel, out_channel, random_seed)
+                samp = _glorot_sample(kernel_size, in_channel, out_channel)
                 spectral_weight_init = tf.transpose(tf.fft2d(samp), [2,3,0,1])
 
                 real_init = tf.get_variable(
@@ -318,8 +317,12 @@ class spectral_conv_layer(object):
 
             conv_out = tf.nn.conv2d(input_x, spatial_weight,
                                     strides=[1, 1, 1, 1],
-                                    padding="SAME")
+                                    padding="SAME",
+                                    data_format=data_format)
             self.cell_out = tf.nn.relu(conv_out + bias)
+
+    def output(self):
+        return self.cell_out
 
 class global_average_layer(object):
     def __init__(self, input_x, m=0):
