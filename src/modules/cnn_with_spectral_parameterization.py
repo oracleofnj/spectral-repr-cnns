@@ -1,6 +1,7 @@
-from .layers import spectral_conv_layer
+from .layers import spectral_conv_layer, global_average_layer
 import numpy as np
 import tensorflow as tf
+from .image_generator import ImageGenerator
 
 class CNN_Spectral_Param():
 	def __init__(self,
@@ -10,6 +11,7 @@ class CNN_Spectral_Param():
 		kernel_size=3,
 		l2_norm=0.01,
 		learning_rate=1e-4,
+		data_format='NHWC',
 		random_seed=0):
 
 		self.num_output = num_output
@@ -42,8 +44,14 @@ class CNN_Spectral_Param():
 
 	def train(self, X_train, y_train, X_val, y_test,
 			  batch_size=512, epochs=10, val_test_frq=20):
+
+		img_gen = ImageGenerator(X_train, y_train)
+		img_gen.translate(shift_height=-2, shift_width=0)
+		generator = img_gen.next_batch_gen(batch_size)
+
 		self.loss_vals = []
 		self.train_accuracy = []
+		self.error_rate = []
 		with tf.name_scope('inputs'):
 			xs = tf.placeholder(shape=[None, 32, 32, 3], dtype=tf.float32)
 			ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
@@ -67,23 +75,39 @@ class CNN_Spectral_Param():
 				for epc in range(epochs):
 					print("epoch {} ".format(epc + 1))
 
+					if epc % 4 == 0 or epc % 4 == 1:
+						img_gen.translate(shift_height=2, shift_width=0)
+					elif epc % 4 == 2 or epc % 4 == 3:
+						img_gen.translate(shift_height=-2, shift_width=0)
+					else:
+						print('This is bad...')
+
+					if np.random.randint(2, size=1)[0] == 1:
+						img_gen.flip(mode='h')
+
+					loss_in_epoch = []
+					train_acc_in_epoch = []
+					error_rate_in_epoch = []
 					for itr in range(iters):
 						iter_total += 1
 
-						training_batch_x = X_train[itr * batch_size:
-												   (1 + itr) * batch_size]
-						training_batch_y = y_train[itr * batch_size:
-												   (1 + itr) * batch_size]
+						training_batch_x, training_batch_y = next(generator)
 
-						_, cur_loss, train_eve = sess.run(
+						_, cur_loss, error_num = sess.run(
 											[step, loss, eve],
 											feed_dict={xs: training_batch_x,
 													   ys: training_batch_y})
-						self.loss_vals.append(cur_loss)
-						self.train_accuracy.append(1 - train_eve / batch_size)
+						loss_in_epoch.append(cur_loss)
+						train_acc_in_epoch.append(1 - error_num / batch_size)
+						error_rate_in_epoch.append(error_num / batch_size)
 
-					print(self.train_accuracy[-1])
-					print(self.loss_vals[-1])
+					self.loss_vals.append(np.mean(loss_in_epoch))
+					self.train_accuracy.append(np.mean(train_acc_in_epoch))
+					self.error_rate.append(np.mean(error_rate_in_epoch))
+
+					print('Error rate:',self.error_rate[-1])
+					print('Train acc:',self.train_accuracy[-1])
+					print('Loss:',self.loss_vals[-1])
 
 	def _build_generic_architecture(self, input_x, input_y):
 		spatial_conv_weights = []
@@ -155,8 +179,8 @@ class CNN_Spectral_Param():
 				conv_kernels = [v for v in tf.trainable_variables() if 'kernel' in v.name]
 				l2_loss = tf.reduce_sum([tf.norm(w, axis=[-2, -1]) for w in conv_kernels])
 
-			l2_loss = tf.reduce_sum([tf.norm(w) for w in fc_weights])
-			
+			l2_loss += tf.reduce_sum([tf.norm(w) for w in fc_weights])
+
 			label = tf.one_hot(input_y, self.num_output)
 			cross_entropy_loss = tf.reduce_mean(
 				tf.nn.softmax_cross_entropy_with_logits(labels=label, logits=fc3),
@@ -261,7 +285,7 @@ class CNN_Spectral_Param():
 										name='max_pool_2')
 
 		if self.use_spectral_params:
-			sc_layer = spectral_conv_layer(input_x=input_x,
+			sc_layer = spectral_conv_layer(input_x=pool2,
 											in_channel=192,
 											out_channel=192,
 											kernel_size=1,
@@ -270,7 +294,7 @@ class CNN_Spectral_Param():
 			conv6 = sc_layer.output()
 			spatial_conv_weights.append(sc_layer.weight)
 		else:
-			conv6 = tf.layers.conv2d(inputs=pool2_output,
+			conv6 = tf.layers.conv2d(inputs=pool2,
 										filters=192,
 										kernel_size=1,
 										activation=tf.nn.relu,
@@ -296,19 +320,18 @@ class CNN_Spectral_Param():
 
 		with tf.name_scope("loss"):
 			if self.use_spectral_params:
-				l2_loss = tf.reduce_sum([tf.norm(w, axis=[-2, -1]) for w in spatial_conv_weights])
+				l2_loss = tf.reduce_sum([tf.norm(w, axis=[-2, -1]) for w in spatial_conv_weights if w.shape[0] == 3])
+				l2_loss += tf.reduce_sum([tf.norm(w, axis=[-2, -1]) for w in spatial_conv_weights if w.shape[0] == 1])
 			else:
 				conv_kernels = [v for v in tf.trainable_variables() if 'kernel' in v.name]
-				l2_loss = tf.reduce_sum([tf.norm(w, axis=[-2, -1]) for w in conv_kernels])
+				l2_loss = tf.reduce_sum([tf.norm(w, axis=[-2, -1]) for w in conv_kernels if w.shape[0] == 3])
+				l2_loss += tf.reduce_sum([tf.norm(w, axis=[-2, -1]) for w in conv_kernels if w.shape[0] == 1])
 
-			l2_loss = tf.reduce_sum([tf.norm(w) for w in fc_weights])
-			
 			label = tf.one_hot(input_y, self.num_output)
 			cross_entropy_loss = tf.reduce_mean(
 				tf.nn.softmax_cross_entropy_with_logits(labels=label, logits=global_avg),
 				name='cross_entropy')
 			loss = tf.add(cross_entropy_loss, self.l2_norm * l2_loss, name='loss')
 
-		return global_avg, loss
-
+		return global_avg, cross_entropy_loss
 
