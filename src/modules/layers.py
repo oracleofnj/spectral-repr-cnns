@@ -24,24 +24,6 @@ class default_conv_layer(object):
         assert input_x.shape[2] == input_x.shape[3]
         assert input_x.shape[1] == in_channel
 
-        # Alternative using layers but not using it
-        # with tf.variable_scope('conv_layer_{0}'.format(m)):
-        # conv_out = tf.layers.conv2d(
-        #                 inputs=input_x,
-        #                 filters=out_channel,
-        #                 kernel_size=kernel_shape,
-        #                 strides=(1, 1),
-        #                 padding='valid',
-        #                 data_format='channels_first',
-        #                 activation=tf.nn.relu,
-        #                 use_bias=True,
-        #                 kernel_initializer=tf.glorot_uniform_initializer(
-        #                                                 seed=rand_seed),
-        #                 bias_initializer=tf.glorot_uniform_initializer(
-        #                                                 seed=rand_seed),
-        #                 name='conv_layer_{0}'.format(m),
-        #                 trainable=True
-        #                             )
         with tf.variable_scope('conv_layer_{0}'.format(m)):
             with tf.name_scope('conv_kernel'):
                 w_shape = [kernel_shape, kernel_shape, in_channel, out_channel]
@@ -210,21 +192,6 @@ class spectral_pool_layer(object):
     def output(self):
         return self.cell_out
 
-    def _freq_dropout_matrix(self):
-        """Create a matrix to be multiplied to implement freq dropout.
-        Its a 1s matrix with values after freq_dropout made 0"""
-        fft_shape = self.fft_shape
-        freq_dropout = self.freq_dropout
-        out = np.zeros(shape=fft_shape[1:],
-                       dtype=np.complex64)
-        start = int((fft_shape[-1] - freq_dropout)/2)
-        end = freq_dropout + start
-        out[:, start:end, start:end] = 1
-        return out
-
-def _glorot_sample(kernel_size, n_in, n_out):
-        limit = np.sqrt(6 / (n_in + n_out))
-        return np.random.uniform(low=-limit, high=limit, size=(n_in, n_out, kernel_size, kernel_size))
 
 class spectral_conv_layer(object):
     def __init__(self, input_x, in_channel, out_channel,
@@ -243,10 +210,21 @@ class spectral_conv_layer(object):
         assert input_x.shape[1] == input_x.shape[2]
         assert input_x.shape[3] == in_channel
 
+        def _glorot_sample(kernel_size, n_in, n_out):
+            limit = np.sqrt(6 / (n_in + n_out))
+            return np.random.uniform(
+                low=-limit,
+                high=limit,
+                size=(n_in, n_out, kernel_size, kernel_size)
+            )
+
         with tf.variable_scope('spec_conv_layer_{0}'.format(m)):
             with tf.name_scope('spec_conv_kernel'):
                 samp = _glorot_sample(kernel_size, in_channel, out_channel)
-                spectral_weight_init = tf.transpose(tf.fft2d(samp), [2,3,0,1])
+                spectral_weight_init = tf.transpose(
+                    tf.fft2d(samp),
+                    [2, 3, 0, 1]
+                )
 
                 real_init = tf.get_variable(
                     name='real_{0}'.format(m),
@@ -256,7 +234,11 @@ class spectral_conv_layer(object):
                     name='imag_{0}'.format(m),
                     initializer=tf.imag(spectral_weight_init))
 
-                spectral_weight = tf.complex(real_init, imag_init, name='spectral_weight_{0}'.format(m))
+                spectral_weight = tf.complex(
+                    real_init,
+                    imag_init,
+                    name='spectral_weight_{0}'.format(m)
+                )
                 self.spectral_weight = spectral_weight
 
             with tf.variable_scope('conv_bias'):
@@ -264,11 +246,19 @@ class spectral_conv_layer(object):
                 bias = tf.get_variable(
                     name='conv_bias_{0}'.format(m),
                     shape=b_shape,
-                    initializer=tf.glorot_uniform_initializer(seed=random_seed))
+                    initializer=tf.glorot_uniform_initializer(
+                        seed=random_seed
+                    ))
                 self.bias = bias
 
-            complex_spatial_weight = tf.transpose(tf.ifft2d(tf.transpose(spectral_weight, [2,3,0,1])), [2,3,0,1])
-            spatial_weight = tf.real(complex_spatial_weight, name='spatial_weight_{0}'.format(m))
+            complex_spatial_weight = tf.transpose(tf.ifft2d(tf.transpose(
+                spectral_weight, [2, 3, 0, 1])),
+                [2, 3, 0, 1]
+            )
+            spatial_weight = tf.real(
+                complex_spatial_weight,
+                name='spatial_weight_{0}'.format(m)
+            )
             self.weight = spatial_weight
 
             conv_out = tf.nn.conv2d(input_x, spatial_weight,
@@ -279,6 +269,7 @@ class spectral_conv_layer(object):
 
     def output(self):
         return self.cell_out
+
 
 class global_average_layer(object):
     def __init__(self, input_x, m=0):
