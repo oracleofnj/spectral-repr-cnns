@@ -9,9 +9,12 @@ from IPython.display import display, HTML
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 
-def download_cifar10():
-    """Downloads cifar-10 tarzip file and unzips it"""
-    url = "https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz"
+def download_cifar10(download_100=False):
+    """Download cifar-10 tarzip file and unzip it."""
+    if download_100:
+        url = "https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz"
+    else:
+        url = "https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz"
     filename = url.split("/")[-1]
     fpath = os.path.join(BASE_DIR, filename)
 
@@ -32,8 +35,10 @@ def download_cifar10():
 
 def load_cifar10(num_batches=5,
                  get_test_data=True,
-                 channels_last=True):
-    """Load the cifar data
+                 channels_last=True,
+                 load_100=False):
+    """Load the cifar data.
+
     Args:
         num_batches: int, the number of batches of data to return
         get_test_data: bool, whether to return test data
@@ -46,10 +51,13 @@ def load_cifar10(num_batches=5,
     """
     assert num_batches <= 5
     # download if not exists:
-    download_cifar10()
+    download_cifar10(load_100)
 
     # load batches in order:
-    dirpath = os.path.join(BASE_DIR, 'cifar-10-batches-py')
+    if load_100:
+        dirpath = os.path.join(BASE_DIR, 'cifar-100-batches-py')
+    else:
+        dirpath = os.path.join(BASE_DIR, 'cifar-10-batches-py')
     images = None
     for i in range(1, num_batches + 1):
         print('getting batch {0}'.format(i))
