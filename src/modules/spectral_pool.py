@@ -3,16 +3,68 @@ import tensorflow as tf
 
 
 def _common_spectral_pool(images, filter_size):
-    assert filter_size % 2
     assert len(images.get_shape().as_list()) == 4
-    n = int((filter_size-1)/2)
-    top_left = images[:, :, :n+1, :n+1]
-    top_right = images[:, :, :n+1, -n:]
-    bottom_left = images[:, :, -n:, :n+1]
-    bottom_right = images[:, :, -n:, -n:]
-    top_combined = tf.concat([top_left, top_right], axis=-1)
-    bottom_combined = tf.concat([bottom_left, bottom_right], axis=-1)
-    all_together = tf.concat([top_combined, bottom_combined], axis=-2)
+    assert filter_size >= 3
+    if filter_size % 2 == 1:
+        n = int((filter_size-1)/2)
+        top_left = images[:, :, :n+1, :n+1]
+        top_right = images[:, :, :n+1, -n:]
+        bottom_left = images[:, :, -n:, :n+1]
+        bottom_right = images[:, :, -n:, -n:]
+        top_combined = tf.concat([top_left, top_right], axis=-1)
+        bottom_combined = tf.concat([bottom_left, bottom_right], axis=-1)
+        all_together = tf.concat([top_combined, bottom_combined], axis=-2)
+    else:
+        n = filter_size // 2
+        top_left = images[:, :, :n, :n]
+        top_middle = tf.expand_dims(
+            tf.cast(0.5 ** 0.5, tf.complex64) *
+            (images[:, :, :n, n] + images[:, :, :n, -n]),
+            -1
+        )
+        top_right = images[:, :, :n, -(n-1):]
+        middle_left = tf.expand_dims(
+            tf.cast(0.5 ** 0.5, tf.complex64) *
+            (images[:, :, n, :n] + images[:, :, -n, :n]),
+            -2
+        )
+        middle_middle = tf.expand_dims(
+            tf.expand_dims(
+                tf.cast(0.5, tf.complex64) *
+                (images[:, :, n, n] + images[:, :, n, -n] +
+                 images[:, :, -n, n] + images[:, :, -n, -n]),
+                -1
+            ),
+            -1
+        )
+        middle_right = tf.expand_dims(
+            tf.cast(0.5 ** 0.5, tf.complex64) *
+            (images[:, :, n, -(n-1):] + images[:, :, -n, -(n-1):]),
+            -2
+        )
+        bottom_left = images[:, :, -(n-1):, :n]
+        bottom_middle = tf.expand_dims(
+            tf.cast(0.5 ** 0.5, tf.complex64) *
+            (images[:, :, -(n-1):, n] + images[:, :, -(n-1):, -n]),
+            -1
+        )
+        bottom_right = images[:, :, -(n-1):, -(n-1):]
+        top_combined = tf.concat(
+            [top_left, top_middle, top_right],
+            axis=-1
+        )
+        middle_combined = tf.concat(
+            [middle_left, middle_middle, middle_right],
+            axis=-1
+        )
+        bottom_combined = tf.concat(
+            [bottom_left, bottom_middle, bottom_right],
+            axis=-1
+        )
+        all_together = tf.concat(
+            [top_combined, middle_combined, bottom_combined],
+            axis=-2
+        )
     return all_together
 
 
@@ -56,7 +108,9 @@ def tf_ifftshift(matrix, n):
 
 
 def spectral_pool(image, filter_size=3,
-                  return_fft=False):
+                  return_fft=False,
+                  return_transformed=False,
+                  ):
     """ Perform a single spectral pool operation.
     Args:
         image: numpy array representing an image, channels last
@@ -66,11 +120,7 @@ def spectral_pool(image, filter_size=3,
                           fourier transform
     Returns:
         An image of same shape as input
-    NOTE: Filter size is enforced to be odd here. It is required to
-    prevent the need for treating edge cases
     """
-    # filter size should always be odd:
-    assert filter_size % 2
     # add dimension to image:
     tf.reset_default_graph()
     im = tf.placeholder(shape=image.shape, dtype=tf.float32)
@@ -79,7 +129,6 @@ def spectral_pool(image, filter_size=3,
     im_fft = tf.fft2d(tf.cast(im, tf.complex64))
 
     im_transformed = _common_spectral_pool(im_fft, filter_size)
-    print('im_transformed', im_transformed.get_shape())
 
     # pad zeros to the image
     # this is required only when we're visualizing the image and not in
@@ -89,7 +138,6 @@ def spectral_pool(image, filter_size=3,
     # im_pad = tf.image.pad_to_bounding_box(im_cropped, offset, offset, dim, dim)
     # im_pad = im_cropped
     im_ifft = tf.real(tf.ifft2d(im_transformed))
-    print('im_ifft', im_ifft.get_shape())
     # perform ishift and take the inverse fft and throw img part
     # make channels first for ishift and ifft2d:
 
@@ -99,7 +147,6 @@ def spectral_pool(image, filter_size=3,
     channel_min = tf.reduce_min(im_ch_last, axis=(0, 1, 2))
     im_out = tf.divide(im_ch_last - channel_min,
                        channel_max - channel_min)
-    print('im_out', im_out.get_shape())
 
     init = tf.global_variables_initializer()
     with tf.Session() as sess:
@@ -108,6 +155,12 @@ def spectral_pool(image, filter_size=3,
             im_fftout, im_new = sess.run([im_fft, im_out],
                                          feed_dict={im: image})
             return im_fftout, im_new
+        elif return_transformed:
+            im_transformed_out, im_new = sess.run(
+                [im_transformed, im_out],
+                feed_dict={im: image}
+            )
+            return im_transformed_out, im_new
         else:
             im_new = sess.run([im_out],
                               feed_dict={im: image})

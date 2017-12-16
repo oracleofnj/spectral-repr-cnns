@@ -152,12 +152,7 @@ class spectral_pool_layer(object):
 
         Returns:
             An image of similar shape as input after reduction
-
-        NOTE: Filter size is enforced to be odd here. It is required to
-        prevent the need for treating edge cases
         """
-        # filter size should always be odd:
-        assert filter_size % 2
         # assert only 1 dimension passed for filter size
         assert isinstance(filter_size, int)
 
