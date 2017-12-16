@@ -314,7 +314,8 @@ class CNN_Spectral_Param():
 
 		with tf.name_scope("loss"):
 			if self.use_spectral_params:
-				l2_loss = tf.reduce_sum([tf.norm(w, axis=[-2, -1]) for w in spatial_conv_weights])
+				l2_loss = tf.reduce_sum([tf.norm(w, axis=[-2, -1]) for w in spatial_conv_weights if w.shape[0] == 3])
+				l2_loss += tf.reduce_sum([tf.norm(w, axis=[-2, -1]) for w in spatial_conv_weights if w.shape[0] == 1])
 			else:
 				conv_kernels = [v for v in tf.trainable_variables() if 'kernel' in v.name]
 				l2_loss = tf.reduce_sum([tf.norm(w, axis=[-2, -1]) for w in conv_kernels])
