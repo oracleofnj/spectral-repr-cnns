@@ -77,12 +77,8 @@ class CNN_Spectral_Pool(object):
         """
         c = self.alpha + (m / self.M) * (self.beta - self.alpha)
 
-        # freq_dropout_lower_bound = c * (1. + n // 2)
-        # freq_dropout_upper_bound = (1. + n // 2)
-
-        # For testing purposes
-        freq_dropout_lower_bound = self.alpha * (1. + n // 2)
-        freq_dropout_upper_bound = self.beta * (1. + n // 2)
+        freq_dropout_lower_bound = c * (1. + n // 2)
+        freq_dropout_upper_bound = (1. + n // 2)
 
         return freq_dropout_lower_bound, freq_dropout_upper_bound
         # ll = int(c * n)
