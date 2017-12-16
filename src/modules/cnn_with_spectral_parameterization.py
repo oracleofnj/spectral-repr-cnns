@@ -279,7 +279,7 @@ class CNN_Spectral_Param():
 										name='max_pool_2')
 
 		if self.use_spectral_params:
-			sc_layer = spectral_conv_layer(input_x=input_x,
+			sc_layer = spectral_conv_layer(input_x=pool2,
 											in_channel=192,
 											out_channel=192,
 											kernel_size=1,
@@ -288,7 +288,7 @@ class CNN_Spectral_Param():
 			conv6 = sc_layer.output()
 			spatial_conv_weights.append(sc_layer.weight)
 		else:
-			conv6 = tf.layers.conv2d(inputs=pool2_output,
+			conv6 = tf.layers.conv2d(inputs=pool2,
 										filters=192,
 										kernel_size=1,
 										activation=tf.nn.relu,
