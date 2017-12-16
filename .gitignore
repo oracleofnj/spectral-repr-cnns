@@ -108,6 +108,7 @@ ENV/
 
 # no data:
 cifar-*-batches-py/
+cifar-*-python/
 *cifar*tar.gz
 log/
 model/
