@@ -120,7 +120,7 @@ def load_cifar100(get_test_data=True,
         content = pickle.load(f, encoding='bytes')
     if images is None:
         images = content[b'data']
-        labels = content[b'labels']
+        labels = content[b'fine_labels']
     # convert to labels:
     labels = np.asarray(labels)
     # convert to RGB format:
@@ -139,7 +139,7 @@ def load_cifar100(get_test_data=True,
     with open(fpath, 'rb') as f:
         content = pickle.load(f, encoding='bytes')
     test_images = content[b'data'].reshape(-1, 3, 32, 32)
-    test_labels = np.asarray(content[b'labels'])
+    test_labels = np.asarray(content[b'fine_labels'])
 
     # normalize:
     test_images = test_images / 255.
