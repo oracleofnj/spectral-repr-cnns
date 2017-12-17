@@ -51,6 +51,6 @@ All code is located in the ```src``` folder. Within that folder, Python function
 
 [```spectral_pool.py```](src/modules/spectral_pool.py) - A function implementing spectral pooling that is shared by multiple sources
 
-[```spectral_pool_test.py```](src/modules/spectral_pool_test.py) - Tests the spectral_pool function
+[```spectral_pool_test.py```](src/modules/spectral_pool_test.py) - Tests the spectral_pool function. This looks old and we should probably delete it.
 
 [```utils.py```](src/modules/utils.py) - Various utility functions. Some were adapted from the homework assignment on CNNs.
