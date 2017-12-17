@@ -275,7 +275,7 @@ class CNN_Spectral_Param():
 										filters=96,
 										kernel_size=self.kernel_size,
 										activation=tf.nn.relu,
-										padding='SAME'
+										padding='SAME',
 										name='conv1')
 
 		if self.use_spectral_params:
