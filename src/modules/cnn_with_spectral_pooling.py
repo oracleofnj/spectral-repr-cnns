@@ -211,7 +211,7 @@ class CNN_Spectral_Pool(object):
                 layer = spectral_conv_layer(input_x=in_x,
                                             in_channel=nchannel,
                                             out_channel=nfilters,
-                                            kernel_shape=1,
+                                            kernel_size=1,
                                             random_seed=seed,
                                             m=self.M + 1,
                                             data_format='NCHW')

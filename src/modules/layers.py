@@ -219,8 +219,13 @@ class spectral_conv_layer(object):
         :param index: The layer index used for naming
         """
         assert len(input_x.shape) == 4
-        assert input_x.shape[1] == input_x.shape[2]
-        assert input_x.shape[3] == in_channel
+        if data_format == 'NHWC':
+            assert input_x.shape[1] == input_x.shape[2]
+            assert input_x.shape[3] == in_channel
+        elif data_format == 'NCHW':
+            assert input_x.shape[1] == in_channel
+            assert input_x.shape[2] == input_x.shape[3]
+
 
         def _glorot_sample(kernel_size, n_in, n_out):
             limit = np.sqrt(6 / (n_in + n_out))
@@ -277,7 +282,7 @@ class spectral_conv_layer(object):
                                     strides=[1, 1, 1, 1],
                                     padding="SAME",
                                     data_format=data_format)
-            self.cell_out = tf.nn.relu(conv_out + bias)
+            self.cell_out = tf.nn.relu(tf.nn.bias_add(conv_out, bias, data_format=data_format))
 
     def output(self):
         return self.cell_out
