@@ -1,3 +1,4 @@
+"""Implement a CNN with spectral pooling and frequency dropout."""
 from .layers import default_conv_layer, spectral_pool_layer
 from .layers import spectral_conv_layer
 from .layers import fc_layer, global_average_layer
@@ -7,6 +8,8 @@ import time
 
 
 class CNN_Spectral_Pool(object):
+    """CNN with spectral pooling layers and options for convolution layers."""
+
     def __init__(self,
                  num_output=10,
                  M=5,
@@ -24,8 +27,10 @@ class CNN_Spectral_Pool(object):
                  random_seed=0,
                  verbose=False,
                  use_spectral_parameterization=False):
-        """Initialize model, defaults are set as per the optimum
-        hyperparameters stated in the journal.
+        """Initialize model.
+
+        Defaults are set as per the optimum hyperparameters stated in
+        the journal article.
 
         params:
         M = total number of (convolution + spectral-pool) layer-pairs
@@ -51,7 +56,8 @@ class CNN_Spectral_Pool(object):
         self.layers = []
 
     def _get_cnn_num_filters(self, m):
-        """ Get number of filters for CNN
+        """Get number of filters for CNN.
+
         Args:
             m: current layer number
         """
@@ -59,7 +65,8 @@ class CNN_Spectral_Pool(object):
                    96 + 32 * m)
 
     def _get_sp_dim(self, n):
-        """Get filter size for current layer
+        """Get filter size for current layer.
+
         Args:
             n: size of image in layer
         """
@@ -323,6 +330,7 @@ class CNN_Spectral_Pool(object):
         This function was adapted from the homework assignments.
         """
         full_model_name = '{0}_{1}'.format(model_name, time.time())
+        self.full_model_name = full_model_name
         self.train_loss = []
         self.val_loss = []
         self.train_accuracy = []
