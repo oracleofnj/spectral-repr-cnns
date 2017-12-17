@@ -469,6 +469,7 @@ class CNN_Spectral_Pool(object):
                                      'iteration:{} accuracy: {}%\n'
                         print(format_str.format(iter_total, valid_acc))
                         best_acc = valid_acc
+                        self.best_acc = best_acc
                         saver.save(sess, 'model/{}/{}'.format(
                             model_name,
                             full_model_name
