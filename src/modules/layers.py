@@ -324,7 +324,7 @@ class spectral_conv_layer(object):
                                     strides=[1, 1, 1, 1],
                                     padding="SAME",
                                     data_format=data_format)
-            self.cell_out = tf.nn.relu(conv_out + bias)
+            self.cell_out = tf.nn.relu(tf.nn.bias_add(conv_out, bias, data_format=data_format))
 
     def output(self):
         return self.cell_out
