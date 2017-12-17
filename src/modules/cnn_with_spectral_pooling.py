@@ -1,4 +1,5 @@
-from .layers import default_conv_layer, spectral_pool_layer, spectral_conv_layer
+from .layers import default_conv_layer, spectral_pool_layer
+from .layers import spectral_conv_layer
 from .layers import fc_layer, global_average_layer
 import numpy as np
 import tensorflow as tf
@@ -76,6 +77,10 @@ class CNN_Spectral_Pool(object):
         Returns:
             freq_dropout_lower_bound: The lower bound for the cutoff
             freq_dropout_upper_bound: The upper bound for the cutoff
+
+        This function implements the linear parameterization of the
+        probability distribution for frequency dropout as described in
+        section 5.1.
         """
         c = self.alpha + (m / self.M) * (self.beta - self.alpha)
 
@@ -83,22 +88,26 @@ class CNN_Spectral_Pool(object):
         freq_dropout_upper_bound = (1. + n // 2)
 
         return freq_dropout_lower_bound, freq_dropout_upper_bound
-        # ll = int(c * n)
-        # ndrop = np.random.random_integers(ll, n)
-        # # make sure it is odd:
-        # if ndrop % 2:
-        #     ndrop -= 1
-        # return ndrop
 
     def _print_message(self, name, args=None):
+        """Log a message during graph construction."""
         if not self.verbose:
             return
         if name == 'conv':
-            print('Adding conv layer {0} | Input size: {1} | Input channels: {2} | #filters: {3} | filter size: {4}'.format(
-                                        args[0], args[1], args[2], args[3], args[4]))
+            format_str = 'Adding conv layer {0} | Input size: {1} | ' + \
+                         'Input channels: {2} | #filters: {3} | ' + \
+                         'filter size: {4}'
+            print(format_str.format(
+                args[0], args[1], args[2], args[3], args[4]
+            ))
         if name == 'sp':
-            print('Adding spectral pool layer {0} | Input size: {1} | filter size: ({2},{2}) | Freq Dropout Bounds: ({3},{4})'.format(
-                                        args[0], args[1], args[2], args[3], args[4]))
+            format_str = 'Adding spectral pool layer {0} | ' + \
+                         'Input size: {1} | ' + \
+                         'filter size: ({2},{2}) | ' + \
+                         'Freq Dropout Bounds: ({3},{4})'
+            print(format_str.format(
+                args[0], args[1], args[2], args[3], args[4]
+            ))
         if name == 'softmax':
             print('Adding final softmax layer using global averaging')
 
@@ -106,13 +115,15 @@ class CNN_Spectral_Pool(object):
             print('Adding final softmax layer using fully-connected layer')
 
         if name == 'lr_anneal':
-            print('\tLearning rate reduced to {0:.4e} at epoch {1}'.format(self._learning_rate, args))
+            format_str = '\tLearning rate reduced to {0:.4e} at epoch {1}'
+            print(format_str.format(self._learning_rate, args))
 
     def build_graph(
         self, input_x, input_y, train_phase,
         extra_conv_layer=True,
         use_global_averaging=True,
     ):
+        """Construct the CNN for training or testing."""
         print("Building tf graph...")
 
         # variable alias:
@@ -122,6 +133,8 @@ class CNN_Spectral_Pool(object):
         # conv layer weights:
         self.conv_layer_weights = []
 
+        # The first part of the graph consists of alternating pairs of
+        # convolutional and spectral pooling layers.
         # iterate and define M layers:
         for m in range(1, self.M + 1):
             if m == 1:
@@ -129,6 +142,7 @@ class CNN_Spectral_Pool(object):
             else:
                 in_x = layers[-1].output()
 
+            # First add the convolutional layer.
             # get number of channels & image size
             # Note: we're working in channel first domain
             _, nchannel, img_size, _ = in_x.get_shape().as_list()
@@ -138,24 +152,29 @@ class CNN_Spectral_Pool(object):
                 (m, img_size, nchannel, nfilters, self.conv_filter_size)
             )
             if self.use_spectral_parameterization:
-                conv_layer = spectral_conv_layer(input_x=in_x,
-                                                    in_channel=nchannel,
-                                                    out_channel=nfilters,
-                                                    kernel_size=self.conv_filter_size,
-                                                    random_seed=seed,
-                                                    m=m,
-                                                    data_format='NCHW')
+                conv_layer = spectral_conv_layer(
+                    input_x=in_x,
+                    in_channel=nchannel,
+                    out_channel=nfilters,
+                    kernel_size=self.conv_filter_size,
+                    random_seed=seed,
+                    m=m,
+                    data_format='NCHW'
+                )
             else:
-                conv_layer = default_conv_layer(input_x=in_x,
-                                                in_channel=nchannel,
-                                                out_channel=nfilters,
-                                                kernel_shape=self.conv_filter_size,
-                                                rand_seed=seed,
-                                                m=m)
+                conv_layer = default_conv_layer(
+                    input_x=in_x,
+                    in_channel=nchannel,
+                    out_channel=nfilters,
+                    kernel_shape=self.conv_filter_size,
+                    rand_seed=seed,
+                    m=m
+                )
 
             layers.append(conv_layer)
             self.conv_layer_weights.append(conv_layer.weight)
 
+            # Then add the spectral pooling layer
             in_x = conv_layer.output()
             _, _, img_size, _ = in_x.get_shape().as_list()
             filter_size = self._get_sp_dim(img_size)
@@ -178,7 +197,8 @@ class CNN_Spectral_Pool(object):
             )
             layers.append(sp_layer)
 
-        # Add another conv layer:
+        # The alternating pairs of convolutional and spectral pooling layers
+        # are followed by a 1x1 convolution
         if extra_conv_layer:
             in_x = layers[-1].output()
             _, nchannel, img_size, _ = in_x.get_shape().as_list()
@@ -206,6 +226,10 @@ class CNN_Spectral_Pool(object):
                                            m=self.M + 1)
             layers.append(layer)
 
+        # Finally, if we are using global averaging,
+        # the last 1x1 convolutional layer is followed by an additional
+        # 1x1 convolutional layer with output_dim equal to the possible
+        # number of output classes, followed by a final global averaging layer.
         if use_global_averaging:
             # Add last conv layer with same filters as number of classes:
             in_x = layers[-1].output()
@@ -229,6 +253,8 @@ class CNN_Spectral_Pool(object):
                                                     m=0)
             layers.append(global_average_0)
         else:
+            # Alternately, the last convolutional layer can be followed by
+            # a fully connected layer.
             self._print_message('final_fc')
             layer = layers[-1]
             pool_shape = layer.output().get_shape()
@@ -272,12 +298,14 @@ class CNN_Spectral_Pool(object):
         return layers[-1].output(), loss
 
     def train_step(self, loss, lr):
+        """Run one step of the optimizer."""
         with tf.name_scope('train_step'):
             step = tf.train.AdamOptimizer(lr).minimize(loss)
 
         return step
 
     def evaluate(self, output, input_y):
+        """Calculate the number of errors on the minibatch."""
         with tf.name_scope('evaluate'):
             pred = tf.argmax(output, axis=1)
             error_num = tf.count_nonzero(pred - input_y, name='error_num')
@@ -290,13 +318,21 @@ class CNN_Spectral_Pool(object):
               use_global_averaging=True,
               model_name='test',
               restore_checkpoint=None):
+        """Train the CNN.
+
+        This function was adapted from the homework assignments.
+        """
         full_model_name = '{0}_{1}'.format(model_name, time.time())
         self.train_loss = []
         self.val_loss = []
         self.train_accuracy = []
         self.val_accuracy = []
-        # defining a copy of learning rate to anneal if by 10% on specified epochs:
+
+        # defining a copy of learning rate to anneal
+        # if by 10% on specified epochs:
         self._learning_rate = self.learning_rate
+
+        # Define the tensorflow variables
         with tf.name_scope('inputs'):
             xs = tf.placeholder(shape=[None, 3, 32, 32], dtype=tf.float32)
             ys = tf.placeholder(shape=[None, ], dtype=tf.int64)
@@ -310,7 +346,8 @@ class CNN_Spectral_Pool(object):
             extra_conv_layer,
             use_global_averaging,
         )
-        # print(type(loss))
+
+        # Calculate the number of minibatches / iterations required
         iters = int(X_train.shape[0] / batch_size)
         val_iters = int(X_val.shape[0] / batch_size)
         print('number of batches for training: {} validation: {}'.format(
@@ -318,13 +355,15 @@ class CNN_Spectral_Pool(object):
             val_iters
         ))
 
+        # Define the tensorflow operations needed for updates and
+        # error calculations
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
             step = self.train_step(loss, lr)
         eve = self.evaluate(output, ys)
-
         init = tf.global_variables_initializer()
 
+        # Run the training operation.
         with tf.Session() as sess:
             merge = tf.summary.merge_all()
             writer = tf.summary.FileWriter("log/{}/{}".format(
@@ -345,30 +384,35 @@ class CNN_Spectral_Pool(object):
                 print("training epoch {} ".format(epc + 1))
 
                 # anneal learning rate:
-                # TODO: Make _learning_rate a Variable and assign to it
                 if (epc + 1) in self.lr_reduction_epochs:
-                    self._learning_rate = self._learning_rate * self.lr_reduction_factor
+                    self._learning_rate *= self.lr_reduction_factor
                     self._print_message('lr_anneal', epc + 1)
 
+                loss_in_epoch, train_eve_in_epoch = [], []
                 for itr in range(iters):
                     iter_total += 1
-                    # if self.verbose:
-                    #     print("\tTraining batch {0}".format(itr))
-
                     training_batch_x = X_train[itr * batch_size:
                                                (1 + itr) * batch_size]
                     training_batch_y = y_train[itr * batch_size:
                                                (1 + itr) * batch_size]
-
-                    _, cur_loss, train_eve = sess.run(
+                    _, iter_loss, iter_eve = sess.run(
                                         [step, loss, eve],
                                         feed_dict={xs: training_batch_x,
                                                    ys: training_batch_y,
                                                    lr: self._learning_rate,
                                                    train_phase: True})
-                    self.train_loss.append(cur_loss)
+                    loss_in_epoch.append(iter_loss)
+                    train_eve_in_epoch.append(iter_eve)
 
-                # check validation after certain number of epochs as specified in input
+                # Save statistics for the epoch.
+                train_loss = np.mean(loss_in_epoch)
+                train_eve = np.mean(train_eve_in_epoch)
+                train_acc = 100 - train_eve * 100 / training_batch_y.shape[0]
+                self.train_loss.append(train_loss)
+                self.train_accuracy.append(train_acc)
+
+                # check validation after certain number of
+                # epochs as specified in input
                 if (epc + 1) % val_test_frq == 0:
                     # do validation
                     val_eves, val_losses, merge_results = [], [], []
@@ -377,15 +421,15 @@ class CNN_Spectral_Pool(object):
                                             (1 + val_itr) * batch_size]
                         val_batch_y = y_val[val_itr * batch_size:
                                             (1 + val_itr) * batch_size]
-
-                        valid_eve_iter, valid_loss_iter, merge_result_iter = sess.run(
-                            [eve, loss, merge],
-                            feed_dict={
-                                xs: val_batch_x,
-                                ys: val_batch_y,
-                                train_phase: False
-                            }
-                        )
+                        valid_eve_iter, valid_loss_iter, merge_result_iter = \
+                            sess.run(
+                                [eve, loss, merge],
+                                feed_dict={
+                                    xs: val_batch_x,
+                                    ys: val_batch_y,
+                                    train_phase: False
+                                }
+                            )
                         val_eves.append(valid_eve_iter)
                         val_losses.append(valid_loss_iter)
                         merge_results.append(merge_result_iter)
@@ -394,24 +438,28 @@ class CNN_Spectral_Pool(object):
                     merge_result = merge_results[-1]
 
                     valid_acc = 100 - valid_eve * 100 / val_batch_y.shape[0]
-                    train_acc = 100 - train_eve * 100 / training_batch_y.shape[0]
-                    self.train_accuracy.append(train_acc)
                     self.val_accuracy.append(valid_acc)
                     self.val_loss.append(valid_loss)
                     if self.verbose:
-                        print('{}/{} loss: {} | training accuracy: {:.3f}% | validation accuracy : {:.3f}%'.format(
+                        format_str = '{}/{} loss: {} | ' + \
+                                     'training accuracy: {:.3f}% | ' + \
+                                     'validation accuracy : {:.3f}%'
+                        print(format_str.format(
                             batch_size * (itr + 1),
                             X_train.shape[0],
-                            cur_loss,
+                            train_loss,
                             train_acc,
                             valid_acc))
 
                     # save the merge result summary
                     writer.add_summary(merge_result, iter_total)
 
-                    # when achieve the best validation accuracy, we store the model paramters
+                    # when achieve the best validation accuracy,
+                    # we store the model paramters
                     if valid_acc > best_acc:
-                        print('\n\tBest validation accuracy! iteration:{} accuracy: {}%\n'.format(iter_total, valid_acc))
+                        format_str = '\n\tBest validation accuracy! ' + \
+                                     'iteration:{} accuracy: {}%\n'
+                        print(format_str.format(iter_total, valid_acc))
                         best_acc = valid_acc
                         saver.save(sess, 'model/{}/{}'.format(
                             model_name,
