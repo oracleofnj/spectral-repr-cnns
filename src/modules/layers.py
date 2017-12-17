@@ -284,7 +284,10 @@ class spectral_conv_layer(object):
         :param index: The layer index used for naming
         """
         assert len(input_x.shape) == 4
-        assert input_x.shape[1] == input_x.shape[2]
+        if data_format == 'NHWC':
+            assert input_x.shape[1] == input_x.shape[2]
+        elif data_format == 'NCHW':
+            assert input_x.shape[2] == input_x.shape[3]
         assert input_x.shape[3] == in_channel
 
         with tf.variable_scope('spec_conv_layer_{0}'.format(m)):
