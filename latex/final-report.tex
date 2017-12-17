@@ -834,6 +834,14 @@ With all of our architectures defined, we used a standard training procedure, fe
 
 \subsection{Deep Learning Network}
 
+The architecture of our spectrally-pooled CNN is described in \textbf{FIGURE 1 - AARSHAY ONE OF YOUR CHARTS GOES HERE}. The TensorFlow network diagram is showin in \textbf{FIGURE 2 - WE SHOULD CHANGE THE FIGURE NUMBERS SO THEY GET UPDATED AUTOMATICALLY}. 
+
+\begin{figure}[h]
+\centering
+  \includegraphics[width=200pt]{images/Architecture_10.png}
+  \caption{TensorFlow Computational Graph}
+\end{figure}
+
 \subsection{Software Design}
 
 \section{Results}
@@ -859,7 +867,14 @@ The best classification error rates we obtained for the CIFAR-10 and CIFAR-100 d
 \item Initial learning rate: 1e-3
 \end{itemize}
 
-Both of these results were improvements on the results of our hyperparameter search; the best results obtained by random search were 27.63\% for CIFAR-10 and 66.68\% for CIFAR-100, respectively.
+Both of these results were improvements on the results of our hyperparameter search; the best results obtained by random search were 27.63\% for CIFAR-10 and 66.68\% for CIFAR-100, respectively. The random search parameters appeared to start overfittin the data quite early; their training curve is shown in \textbf{FIGURE 3 BUT AUTONUMBER THIS.}
+
+\begin{figure}
+\centering
+  \includegraphics[width=200pt]{images/Training_Curve_10.png}
+  \caption{Training Curve from Optimal Random-Search Hyperparameters}
+\end{figure}
+
 
 The original paper reports results of 8.6\% for CIFAR 10 and 31.6\% for CIFAR 100, respectively; therefore, our results were significantly worse than the results reported by the paper's authors. 
 
