@@ -8,4 +8,12 @@ This repo is an implementation of Rippel, Snoek, and Adams 2015 (https://arxiv.o
 
 ## Requirements
 
-The project was performed using Tensorflow 1.4.0 and NumPy 1.13. Certain notebooks require the Pillow 4.3 library to be installed (```sudo pip3 install Pillow```).
+The project was developed using Tensorflow 1.4.0 and NumPy 1.13. Certain notebooks require the Pillow 4.3 library to be installed (```sudo pip3 install Pillow```).
+
+## Code Organization
+
+All code is located in the ```src``` folder. Within that folder, Python functions and classes that are shared between multiple notebooks are all located in the ```modules``` folder.
+
+## Notebooks
+
+[src/cnn_spectral_parameterization.ipynb](```cnn_spectral_parameterization.ipynb```) - Alex, please add a description
