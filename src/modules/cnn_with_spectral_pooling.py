@@ -167,6 +167,7 @@ class CNN_Spectral_Pool(object):
                     in_channel=nchannel,
                     out_channel=nfilters,
                     kernel_shape=self.conv_filter_size,
+                    activation=tf.nn.relu,
                     rand_seed=seed,
                     m=m
                 )
