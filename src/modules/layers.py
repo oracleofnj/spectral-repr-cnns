@@ -286,9 +286,11 @@ class spectral_conv_layer(object):
         assert len(input_x.shape) == 4
         if data_format == 'NHWC':
             assert input_x.shape[1] == input_x.shape[2]
+            assert input_x.shape[3] == in_channel
         elif data_format == 'NCHW':
+            assert input_x.shape[1] == in_channel
             assert input_x.shape[2] == input_x.shape[3]
-        assert input_x.shape[3] == in_channel
+
 
         with tf.variable_scope('spec_conv_layer_{0}'.format(m)):
             with tf.name_scope('spec_conv_kernel'):
