@@ -329,6 +329,7 @@ class CNN_Spectral_Param():
 										activation=tf.nn.relu,
 										name='conv4')
 
+		print(conv1, conv2, conv3, conv4)
 		if self.use_spectral_params:
 			sc_layer = spectral_conv_layer(input_x=conv4,
 											in_channel=192,
@@ -345,7 +346,6 @@ class CNN_Spectral_Param():
 										activation=tf.nn.relu,
 										name='conv5')
 
-		print(conv1, conv2, conv3, conv4, conv5)
 		pool2 = tf.layers.max_pooling2d(inputs=conv5,
 										pool_size=3,
 										strides=2,
