@@ -10,7 +10,7 @@ The project was developed using Tensorflow 1.4.0 and NumPy 1.13. Certain noteboo
 
 ## Running saved models
 
-Two of the notebooks refer to the saved models which contain the weights for our best accuracies. Before running these, unzip the ```best_model_10.tar.gz``` and ```best_model_100.tar.gz``` files.
+Two of the notebooks refer to the saved models which contain the weights for our best accuracies. Before running these, unzip the ```src/best_model_10.tar.gz``` and ```src/best_model_100.tar.gz``` files.
 
 ## Code Organization
 
