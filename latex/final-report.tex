@@ -844,7 +844,7 @@ With all of our architectures defined, we used a standard training procedure, fe
 
 \textbf{A FIGURE GOES HERE}
 
-We present a plot of the average information dissipation for the CIFAR-10 <<<test>>> set. The y-axis displays the L2 error normalized by the norm of the input images. The red line indicates the error rate achieved by max-pooling 2x2 regions with a stride of 2, which is the minimum downsampling that max-pooling can perform. 
+We present a plot of the average information dissipation for the CIFAR-10 dataset. The y-axis displays the L2 error normalized by the norm of the input images. The red line indicates the error rate achieved by max-pooling 2x2 regions with a stride of 2, which is the minimum downsampling that max-pooling can perform. 
 
 The figure from the original paper is similar. Our plot was produced using the CIFAR-10 dataset instead of the ImageNet validation set, which is most likely responsible for the differences here. The ImageNet images are much larger, with an average resolution of approximately 475x400 pixels (depending on the year of the dataset in question) whereas the CIFAR images are only 32x32. We believe that our results substantially validate the claim of the original paper that spectral pooling preserves information in the original image files well.
 
@@ -852,16 +852,18 @@ The figure from the original paper is similar. Our plot was produced using the C
 
 The best classification error rates we obtained for the CIFAR-10 and CIFAR-100 datasets were 18.76\% and 51.83\%, respectively. These were obtained with the following hyperparameters:
 
-M (number of spectral pooling layers): 6 for CIFAR 10, 4 for CIFAR 100
-L2 Norm: 3e-4 for CIFAR 10, 1e-4 for CIFAR 100
-Gamma (dimensionality reduction at each spectral pooling layer: 0.79
-Initial learning rate: 1e-3
+\begin{itemize}
+\item M (number of spectral pooling layers): 6 for CIFAR 10, 4 for CIFAR 100
+\item L2 Norm: 3e-4 for CIFAR 10, 1e-4 for CIFAR 100
+\item $\gamma$ (dimensionality reduction at each spectral pooling layer: 0.79
+\item Initial learning rate: 1e-3
+\end{itemize}
 
 Both of these results were improvements on the results of our hyperparameter search; the best results obtained by random search were 27.63\% for CIFAR-10 and 66.68\% for CIFAR-100, respectively.
 
 The original paper reports results of 8.6\% for CIFAR 10 and 31.6\% for CIFAR 100, respectively; therefore, our results were significantly worse than the results reported by the paper?s authors. 
 
-Optimization Convergence Speed (Results - Section 5.1.3)
+\subsubsection{Optimization Convergence Speed}
 
 Alex - please complete
 
