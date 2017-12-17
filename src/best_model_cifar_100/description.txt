@@ -1,0 +1,9 @@
+cnn = CNN_Spectral_Pool(M=4,
+                        num_output=100,
+                        verbose=True,
+                        learning_rate=1e-3,
+                        l2_norm=0.0001,
+                        lr_reduction_factor=0.5,
+                        lr_reduction_epochs=[11,41,61,81,101,121,141],
+                        gamma=0.79)
+
