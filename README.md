@@ -16,4 +16,4 @@ All code is located in the ```src``` folder. Within that folder, Python function
 
 ## Notebooks
 
-[src/cnn_spectral_parameterization.ipynb](```cnn_spectral_parameterization.ipynb```) - Alex, please add a description
+[```cnn_spectral_parameterization.ipynb```](src/cnn_spectral_parameterization.ipynb) - Alex, please add a description
