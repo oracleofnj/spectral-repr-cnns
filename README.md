@@ -28,7 +28,7 @@ All code is located in the ```src``` folder. Within that folder, Python function
 
 [```hcnw-spectral-pool-cifar10.ipynb```](src/hcnw-spectral-pool-cifar10.ipynb) - This notebook uses the best identified hyperparameters to train the network on the entire CIFAR-10 dataset and compute the test accuracy. Needs to be copied and added.
 
-[```Frequency_Dropout_Testing.ipynb```](src/Frequency_Dropout_Testing.ipynb.ipynb) - This notebook demonstrates frequency dropout in action on a minibatch.
+[```Frequency_Dropout_Testing.ipynb```](src/Frequency_Dropout_Testing.ipynb) - This notebook demonstrates frequency dropout in action on a minibatch.
 
 ## Modules
 
