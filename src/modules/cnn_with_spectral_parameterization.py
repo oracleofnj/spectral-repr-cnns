@@ -180,6 +180,7 @@ class CNN_Spectral_Param():
 										filters=96,
 										kernel_size=self.kernel_size,
 										activation=tf.nn.relu,
+										padding='SAME',
 										name='conv1')
 
 		pool1 = tf.layers.max_pooling2d(inputs=conv1,
@@ -203,6 +204,7 @@ class CNN_Spectral_Param():
 										filters=192,
 										kernel_size=self.kernel_size,
 										activation=tf.nn.relu,
+										padding='SAME',
 										name='conv2')
 
 		pool2 = tf.layers.max_pooling2d(inputs=conv2,
@@ -273,6 +275,7 @@ class CNN_Spectral_Param():
 										filters=96,
 										kernel_size=self.kernel_size,
 										activation=tf.nn.relu,
+										padding='SAME'
 										name='conv1')
 
 		if self.use_spectral_params:
@@ -289,6 +292,7 @@ class CNN_Spectral_Param():
 										filters=96,
 										kernel_size=self.kernel_size,
 										activation=tf.nn.relu,
+										padding='SAME',
 										name='conv2')
 
 		pool1 = tf.layers.max_pooling2d(inputs=conv2,
@@ -311,6 +315,7 @@ class CNN_Spectral_Param():
 										filters=192,
 										kernel_size=self.kernel_size,
 										activation=tf.nn.relu,
+										padding='SAME',
 										name='conv3')
 
 		if self.use_spectral_params:
@@ -327,9 +332,9 @@ class CNN_Spectral_Param():
 										filters=192,
 										kernel_size=self.kernel_size,
 										activation=tf.nn.relu,
+										padding='SAME',
 										name='conv4')
 
-		print(conv1, conv2, conv3, conv4)
 		if self.use_spectral_params:
 			sc_layer = spectral_conv_layer(input_x=conv4,
 											in_channel=192,
@@ -344,6 +349,7 @@ class CNN_Spectral_Param():
 										filters=192,
 										kernel_size=self.kernel_size,
 										activation=tf.nn.relu,
+										padding='SAME',
 										name='conv5')
 
 		pool2 = tf.layers.max_pooling2d(inputs=conv5,
@@ -366,6 +372,7 @@ class CNN_Spectral_Param():
 										filters=192,
 										kernel_size=1,
 										activation=tf.nn.relu,
+										padding='SAME',
 										name='conv6')
 
 		if self.use_spectral_params:
@@ -382,6 +389,7 @@ class CNN_Spectral_Param():
 										filters=10,
 										kernel_size=1,
 										activation=None,
+										padding='SAME',
 										name='conv7')
 
 		global_avg = tf.reduce_mean(input_tensor=conv7, axis=[1,2])
