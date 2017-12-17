@@ -8,6 +8,10 @@ This repo is an implementation of Rippel, Snoek, and Adams 2015 (https://arxiv.o
 
 The project was developed using Tensorflow 1.4.0 and NumPy 1.13. Certain notebooks require the Pillow 4.3 library to be installed (```sudo pip3 install Pillow```). Since the code uses the HCNW format to perform convolutions, it will only run on a GPU-enabled machine.
 
+## Running saved models
+
+Two of the notebooks refer to the saved models which contain the weights for our best accuracies. Before running these, unzip the ```best_model_10.tar.gz``` and ```best_model_100.tar.gz``` files.
+
 ## Code Organization
 
 All code is located in the ```src``` folder. Within that folder, Python functions and classes that are shared between multiple notebooks are all located in the ```modules``` folder.
@@ -24,9 +28,9 @@ All code is located in the ```src``` folder. Within that folder, Python function
 
 [```hyperparameter-search.ipynb```](src/hyperparameter-search.ipynb) - This notebook performs hyperparameter search on the CIFAR-10 dataset to identify the best hyperparameters.
 
-[```hcnw-spectral-pool-cifar100.ipynb```](src/hcnw-spectral-pool-cifar100.ipynb) - This notebook uses the best identified hyperparameters to train the network on the entire CIFAR-100 dataset and compute the test accuracy.
+[```full-training-10.ipynb```](src/full-training-10.ipynb) - This notebook uses the best identified hyperparameters to train the network on the entire CIFAR-10 dataset and compute the test accuracy. It also shows the improved results we got from manual tuning of the hyperparameters. Before running this notebook, unzip ```src/best_model_10.tar.gz```.
 
-[```hcnw-spectral-pool-cifar10.ipynb```](src/hcnw-spectral-pool-cifar10.ipynb) - This notebook uses the best identified hyperparameters to train the network on the entire CIFAR-10 dataset and compute the test accuracy. Needs to be copied and added.
+[```full-training-100.ipynb```](src/full-training-100.ipynb) - This notebook uses the best identified hyperparameters to train the network on the entire CIFAR-100 dataset and compute the test accuracy. It also shows the improved results we got from manual tuning of the hyperparameters. Before running this notebook, unzip ```src/best_model_100.tar.gz```.
 
 [```Frequency_Dropout_Testing.ipynb```](src/Frequency_Dropout_Testing.ipynb) - This notebook demonstrates frequency dropout in action on a minibatch.
 
