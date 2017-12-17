@@ -840,11 +840,58 @@ With all of our architectures defined, we used a standard training procedure, fe
 
 \subsection{Project Results and Comparison}
 
+\subsubsection{Information Preservation}
+
+\textbf{A FIGURE GOES HERE}
+
+We present a plot of the average information dissipation for the CIFAR-10 <<<test>>> set. The y-axis displays the L2 error normalized by the norm of the input images. The red line indicates the error rate achieved by max-pooling 2x2 regions with a stride of 2, which is the minimum downsampling that max-pooling can perform. 
+
+The figure from the original paper is similar. Our plot was produced using the CIFAR-10 dataset instead of the ImageNet validation set, which is most likely responsible for the differences here. The ImageNet images are much larger, with an average resolution of approximately 475x400 pixels (depending on the year of the dataset in question) whereas the CIFAR images are only 32x32. We believe that our results substantially validate the claim of the original paper that spectral pooling preserves information in the original image files well.
+
+\subsubsection{Spectral Pooling and Frequency Dropout for Traditionally Parameterized CNNs}
+
+The best classification error rates we obtained for the CIFAR-10 and CIFAR-100 datasets were 18.76\% and 51.83\%, respectively. These were obtained with the following hyperparameters:
+
+M (number of spectral pooling layers): 6 for CIFAR 10, 4 for CIFAR 100
+L2 Norm: 3e-4 for CIFAR 10, 1e-4 for CIFAR 100
+Gamma (dimensionality reduction at each spectral pooling layer: 0.79
+Initial learning rate: 1e-3
+
+Both of these results were improvements on the results of our hyperparameter search; the best results obtained by random search were 27.63\% for CIFAR-10 and 66.68\% for CIFAR-100, respectively.
+
+The original paper reports results of 8.6\% for CIFAR 10 and 31.6\% for CIFAR 100, respectively; therefore, our results were significantly worse than the results reported by the paper?s authors. 
+
+Optimization Convergence Speed (Results - Section 5.1.3)
+
+Alex - please complete
+
+
+
 \subsection{Insights Gained}
+
+Implementing the proposals of this paper and attempting to replicate their results was an extremely enjoyable and educational project. None of us had a background in signal processing before attempting this project and we are grateful to have had the opportunity to learn about the Fourier transform and its applications in image processing. It was disappointing that we were not able to replicate the impressive results obtained by the authors. However, after thinking about the proposals and their implications, we have certain theories for why our results with these techniques were essentially equivalent to the results obtained with standard CNNs. 
+
+When we were first discussing the paper before we began to implement the proposals, our theory for why the spectrally parameterized filters would be easier to optimize than the traditionally parameters filters was the DFT was a mysterious nonlinear operation and that the resulting parameters had ?nicer" derivatives than the standard parameters. As an analogy, even though the tanh function and the logistic sigmoid are nearly identical, the difference in the range of the two functions makes it much easier for stochastic gradient descent to optimize networks using tanh for the nonlinearity than those with employing the sigmoid function. It is now obvious to us that the Fourier transform is a linear transform and the DFT coefficients are linear combinations of the filter weights, so this theory about the derivatives does not seem plausible. 
+
+\textbf{DEPENDING ON ALEX'S RESULTS}
+
+Our conjecture is that in order to achieve their superior results on convergence times, the authors used a particular form of initialization for the filter weights which outperformed the standard Glorot initialization that we used. 
+\textbf{OR}
+
+Despite this, we did indeed find that the spectrally parameterized networks converge faster in practice. Although we don't have a particularly satisfying explanation for this, we assume, as do the original authors, that this is a result of the of the form of the parameter updates used by the Adam optimizer. As the original authors write, ?[T]his parametrization corresponds to a rotation to a more meaningful axis alignment, where the number of relevant elements has been significantly reduced. Since modern optimizers implement update rules that consist of adaptive element-wise rescaling, they are able to leverage this axis alignment by making large updates to a small number of elements."
+
+Another insight, related to the spectral pooling operation, involves this choice of downsampling operation and its effects on the image content. As the images in both the original paper and ours demonstrate, it is clearly true that we can still easily understand an image after a fairly drastic dimensionality reduction through spectral pooling. However, there is certain important information that is lost by discarding the high-frequency content of an image. For example, edge detection, which is typically one of the first filters learned by a CNN, is essentially equivalent to discarding all of the low-frequency content of an image! As a result, it is not so clear why the spectral pooling operation would be the best way of downsampling the image, particularly as it is transformed through the network. In fact, it is somewhat akin to average-pooling, which has empirically not proved as successful in most CNN architectures as max-pooling. 
+
+Finally, it is not clear to us why the frequency dropout technique should have been as successful as a regularization technique as the authors found. The traditional dropout operation has a clear interpretation as a way of forcing the network to act as an ensemble with shared weights and the statistical properties of ensembles are well known to produce superior results. Although there may be a sound theoretical explanation for why frequency dropout is successful at regularizing a CNN, we were not able to come up with one.
 
 \section{Conclusion}
 
+Spectral pooling is a downsampling technique that can gradually reduce the dimensionality of an image while maintaining a close approximation to the original image. However, we were not able to replicate the authors? finding that spectral pooling and the related technique of frequency dropout were able to sufficiently regularize the network on their own in order to achieve classification rates on the CIFAR-10 and CIFAR-100 that were substantially superior to previously reported techniques. Finally, \textbf{we did not find that that the Adam optimizer converged in substantially fewer epochs when optimizing a network parameterized by the spectral coefficients of the convolutional filters as opposed to the filter weights themselves, regardless of network architecture - THIS MAY NEED TO BE CHANGED BASED ON ALEX'S RESULTS}
+
 \section{Acknowledgements}
+
+We are grateful to Stanford Professor Brad Osgood and to Stanford University for the outstanding series of lecture videos, The Fourier Transform and its Applications, which are available on YouTube. We are also grateful to Google and the TensorFlow authors and contributors, who have developed and open-sourced a library that makes it possible to implement these complex proposals in an extraordinarily efficient way that correctly and automatically implements differentiation and backpropagation for us while allowing us to take advantage of GPUs. Finally, we would like to thank Professor Kostic for making this fascinating paper available one of the options for our final project!
+
 
 \begin{thebibliography}{1}
 
