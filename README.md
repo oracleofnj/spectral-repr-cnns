@@ -28,7 +28,7 @@ All code is located in the ```src``` folder. Within that folder, Python function
 
 [```approximation-loss.ipynb```](src/approximation-loss.ipynb) - This notebook demonstrates spectral pooling and frequency dropout in action on a minibatch. It also replicates the results for the approximation loss from the original paper.
 
-[```cnn_spectral_parameterization.ipynb```](src/cnn_spectral_parameterization.ipynb) - Alex, please add a description
+[```cnn_spectral_parameterization.ipynb```](src/cnn_spectral_parameterization.ipynb) - This notebook replicates the comparison of convergence time (measured in epochs) for traditionally vs spectrally parameterized CNNs.
 
 [```figure2.ipynb```](src/figure2.ipynb) - This notebook uses the spectral_pool function to downsample an image.
 
@@ -58,7 +58,5 @@ All code is located in the ```src``` folder. Within that folder, Python function
 * ```global_average_layer```: A layer implementing global averaging as described in [Lin et al.](https://arxiv.org/abs/1312.4400)
 
 [```spectral_pool.py```](src/modules/spectral_pool.py) - A function implementing spectral pooling that is shared by multiple sources
-
-[```spectral_pool_test.py```](src/modules/spectral_pool_test.py) - Tests the spectral_pool function. This looks old and we should probably delete it.
 
 [```utils.py```](src/modules/utils.py) - Various utility functions. Some were adapted from the homework assignment on CNNs.
