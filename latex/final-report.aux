@@ -1,4 +1,11 @@
 \relax 
+\citation{refpaper}
+\citation{refpaper}
+\citation{refpaper}
+\citation{alexnet}
+\citation{inverse_law}
+\citation{alexnet}
+\citation{refpaper}
 \@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}}
 \newlabel{sec:introduction}{{1}{1}}
 \@writefile{toc}{\contentsline {section}{\numberline {2}Original Paper}{1}}
@@ -7,26 +14,51 @@
 \@writefile{toc}{\contentsline {section}{\numberline {3}Methodology}{2}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Implementation}{2}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.1}Spectral Filter Parameterization}{2}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Process for implementing spectral parameterization of CNN filters}}{2}}
+\newlabel{fig:spec_param}{{1}{2}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.2}Spectral Pooling}{2}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.3}Frequency Dropout}{2}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Result Replication}{3}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.1}Information Preservation}{3}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.2}Spectral Pooling and Frequency Dropout for Traditionally Parameterized CNNs}{3}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.3}Optimization Convergence Speed}{3}}
-\@writefile{toc}{\contentsline {section}{\numberline {4}Implementation}{3}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Deep Learning Network}{3}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Software Design}{3}}
-\@writefile{toc}{\contentsline {section}{\numberline {5}Results}{3}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Project Results and Comparison}{3}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.1.1}Information Preservation}{3}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.1.2}Spectral Pooling and Frequency Dropout for Traditionally Parameterized CNNs}{3}}
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces TensorFlow Computational Graph}}{4}}
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Training Curve from Optimal Random-Search Hyperparameters}}{4}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.1.3}Optimization Convergence Speed}{4}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Insights Gained}{4}}
-\bibcite{Hotspots:almanie}{1}
-\@writefile{toc}{\contentsline {section}{\numberline {6}Conclusion}{5}}
-\@writefile{toc}{\contentsline {section}{\numberline {7}Acknowledgements}{5}}
-\@writefile{toc}{\contentsline {section}{References}{5}}
-\@writefile{toc}{\contentsline {section}{\numberline {8}Appendix}{5}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {8.1}Individual Student Contributions}{5}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Process for implementing spectral pooling}}{3}}
+\newlabel{fig:spec_pool}{{2}{3}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces CNN with Spectral Pooling Architecture}}{3}}
+\newlabel{fig:cnn_arch}{{3}{3}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.3}Frequency Dropout}{3}}
+\citation{global_average}
+\citation{cifar10}
+\citation{adam}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces TensorFlow Computational Graph}}{4}}
+\newlabel{fig:tb_graph}{{4}{4}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Result Replication}{4}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.1}Information Preservation}{4}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Higher information retrieval in spectral pooling as compared to max pooling (grayscale image)}}{4}}
+\newlabel{fig:fig2_gray}{{5}{4}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Higher information retrieval in spectral pooling as compared to max pooling (RGB image)}}{4}}
+\newlabel{fig:fig2_color}{{6}{4}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.2}Spectral Pooling and Frequency Dropout for Traditionally Parameterized CNNs}{4}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Comparison of the norm of the difference in original vs pooled images, showing higher information preservation in spectral pooling}}{5}}
+\newlabel{fig:preserve}{{7}{5}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.3}Optimization Convergence Speed}{5}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Results}{5}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Project Results and Comparison}{5}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.1}Information Preservation}{5}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.2}Spectral Pooling and Frequency Dropout for Traditionally Parameterized CNNs}{5}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Training Curve from Optimal Random-Search Hyperparameters}}{6}}
+\newlabel{fig:train_curve}{{8}{6}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.3}Optimization Convergence Speed}{6}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Comparison of original paper's speed-up factors vs. ours.}}{6}}
+\newlabel{tab:Optimization Convergence}{{1}{6}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Error rates for various architectures in optimization convergence speed test.}}{6}}
+\newlabel{fig:spectral_param_training_curves}{{9}{6}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Insights Gained}{6}}
+\bibstyle{IEEEtranS}
+\bibdata{bibfile}
+\bibcite{adam}{1}
+\bibcite{cifar10}{2}
+\bibcite{alexnet}{3}
+\bibcite{global_average}{4}
+\bibcite{refpaper}{5}
+\bibcite{inverse_law}{6}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Conclusion}{7}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Acknowledgements}{7}}
+\@writefile{toc}{\contentsline {section}{References}{7}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Appendix}{7}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Individual Student Contributions}{7}}
