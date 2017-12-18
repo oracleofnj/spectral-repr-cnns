@@ -6,7 +6,7 @@ This repo is an implementation of Rippel, Snoek, and Adams 2015 (https://arxiv.o
 
 ## Requirements
 
-The project was developed using Tensorflow 1.4.0 and NumPy 1.13. Certain notebooks require the Pillow 4.3 library to be installed (```sudo pip3 install Pillow```). Since the code uses the HCNW format to perform convolutions, it will only run on a GPU-enabled machine.
+The project was developed using Tensorflow 1.3.0 and NumPy 1.13. Certain notebooks require the Pillow 4.3 library to be installed (```sudo pip3 install Pillow```). Since the code uses the HCNW format to perform convolutions, it will only run on a GPU-enabled machine.
 
 ## Running saved models
 
