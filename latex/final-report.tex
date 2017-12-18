@@ -954,6 +954,8 @@ Both of these results were improvements on the results of our hyperparameter sea
 
 The original paper reports results of 8.6\% for CIFAR 10 and 31.6\% for CIFAR 100, respectively; therefore, our results were significantly worse than the results reported by the paper's authors.
 
+Hyperparameter search took approximately 8 hours across two GPU instances. Once the optimal parameters were identified, training the network on the full dataset took approximately two hours per model.
+
 \subsubsection{Optimization Convergence Speed}\label{ssec:spec_conv_results}
 
 In the original paper, the authors claimed that spectral parameterization consistently improved the number of epochs it took to reach convergence by a factor of 2.2 to 5.1, depending on the architecture. While our speed-up factors do not exactly match those of the original paper, our tests did reveal the benefits of using spectral parameterization. In figure \ref{fig:spectral_param_training_curves}, we have plotted the training accuracies across epochs for each of our models. The exact values of the error rates are less important than the relative shapes of the two curves in any one plot. The generic architecture converged to minimal training error in an almost identical fashion both with and without spectral parameterization, but the other two architectures showed significant improvements through the use of spectral parameterization.
@@ -1014,5 +1016,27 @@ We are grateful to Stanford Professor Brad Osgood and to Stanford University for
 \section{Appendix}
 
 \subsection{Individual Student Contributions}
+
+\begin{table}[h!]
+  \begin{center}
+    \caption{Contributions of each team member to the overall project.}
+    \label{tab:contributions}
+    \begin{tabular}{p{2cm}|p{2cm}|p{2cm}|p{2cm}}
+      & \textbf{aj2713} & \textbf{jss2272} & \textbf{atw2131}\\
+      \hline
+      \textbf{Last name} & Jain & Samet & Wainger \\
+      \hline
+      \textbf{Fraction of contribution} & 1/3 & 1/3 & 1/3\\
+      \hline
+      \textbf{Contribution 1} & Understood the difference between max pooling and spectral pooling & Background research on DFT & Implemented spectral parameterization CNN layer\\
+      \hline
+      \textbf{Contribution 2} & Justification of higher information retrieval in spectral pooling & Spectral Pooling CNN Architecture & Designed generic and deep CNN architectures\\
+      \hline
+      \textbf{Contribution 3} & Defined initial working code structure for spectral pooling layer with CNN  & Hyperparameter search and manual tuning & Trained models and built graph for optimization convergence test\\
+    \end{tabular}
+  \end{center}
+\end{table}
+
+All team members contributed to the final write-up.
 
 \end{document}
