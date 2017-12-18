@@ -12,7 +12,7 @@ A copy of our [Final Report](latex/final-report.pdf) is included in this repo.
 
 The project was developed using Tensorflow 1.3.0 and NumPy 1.13. Certain notebooks require the Pillow 4.3 library to be installed (```sudo pip3 install Pillow```).
 
-Since the code uses the HCNW format to perform convolutions, it will only run on a GPU-enabled machine.
+Since the code uses the NCHW format to perform convolutions, it will only run on a GPU-enabled machine.
 
 The CIFAR-100 dataset does not come in batches. Loading the dataset will require a machine with at least 32 GB of RAM.
 
@@ -28,7 +28,7 @@ All code is located in the ```src``` folder. Within that folder, Python function
 
 [```approximation-loss.ipynb```](src/approximation-loss.ipynb) - This notebook demonstrates spectral pooling and frequency dropout in action on a minibatch. It also replicates the results for the approximation loss from the original paper.
 
-[```cnn_spectral_parameterization.ipynb```](src/cnn_spectral_parameterization.ipynb) - Alex, please add a description
+[```cnn_spectral_parameterization.ipynb```](src/cnn_spectral_parameterization.ipynb) - This notebook replicates the comparison of convergence time (measured in epochs) for traditionally vs spectrally parameterized CNNs.
 
 [```figure2.ipynb```](src/figure2.ipynb) - This notebook uses the spectral_pool function to downsample an image.
 
@@ -58,7 +58,5 @@ All code is located in the ```src``` folder. Within that folder, Python function
 * ```global_average_layer```: A layer implementing global averaging as described in [Lin et al.](https://arxiv.org/abs/1312.4400)
 
 [```spectral_pool.py```](src/modules/spectral_pool.py) - A function implementing spectral pooling that is shared by multiple sources
-
-[```spectral_pool_test.py```](src/modules/spectral_pool_test.py) - Tests the spectral_pool function. This looks old and we should probably delete it.
 
 [```utils.py```](src/modules/utils.py) - Various utility functions. Some were adapted from the homework assignment on CNNs.
