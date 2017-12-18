@@ -12,6 +12,8 @@ class default_conv_layer(object):
                  m=0):
         """
         NOTE: Image should be CHANNEL FIRST
+        This class has been partially adapted from the homework assignments
+        given by the TAs
         :param input_x: Should be a 4D array like:
                             (batch_num, channel_num, img_len, img_len)
         :param in_channel: The number of channels
@@ -77,6 +79,9 @@ class fc_layer(object):
     def __init__(self, input_x, in_size, out_size, rand_seed,
                  activation_function=None, m=0):
         """
+        Implementing fully-connected layers.
+        This class has been partially adapted from the homework assignments
+        given by the TAs
         :param input_x: The input of the FC layer. It should be a
             flatten vector.
         :param in_size: The length of input vector.
