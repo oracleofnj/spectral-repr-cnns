@@ -12,7 +12,7 @@ A copy of our [Final Report](latex/final-report.pdf) is included in this repo.
 
 The project was developed using Tensorflow 1.3.0 and NumPy 1.13. Certain notebooks require the Pillow 4.3 library to be installed (```sudo pip3 install Pillow```).
 
-Since the code uses the HCNW format to perform convolutions, it will only run on a GPU-enabled machine.
+Since the code uses the NCHW format to perform convolutions, it will only run on a GPU-enabled machine.
 
 The CIFAR-100 dataset does not come in batches. Loading the dataset will require a machine with at least 32 GB of RAM.
 
