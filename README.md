@@ -6,7 +6,11 @@ This repo is an implementation of Rippel, Snoek, and Adams 2015 (https://arxiv.o
 
 ## Requirements
 
-The project was developed using Tensorflow 1.3.0 and NumPy 1.13. Certain notebooks require the Pillow 4.3 library to be installed (```sudo pip3 install Pillow```). Since the code uses the HCNW format to perform convolutions, it will only run on a GPU-enabled machine.
+The project was developed using Tensorflow 1.3.0 and NumPy 1.13. Certain notebooks require the Pillow 4.3 library to be installed (```sudo pip3 install Pillow```).
+
+Since the code uses the HCNW format to perform convolutions, it will only run on a GPU-enabled machine.
+
+The CIFAR-100 dataset does not come in batches. Loading the dataset will require a machine with at least 32 GB of RAM.
 
 ## Running saved models
 
@@ -18,21 +22,17 @@ All code is located in the ```src``` folder. Within that folder, Python function
 
 ## Notebooks
 
+[```approximation-loss.ipynb```](src/approximation-loss.ipynb) - This notebook demonstrates spectral pooling and frequency dropout in action on a minibatch. It also replicates the results for the approximation loss from the original paper.
+
 [```cnn_spectral_parameterization.ipynb```](src/cnn_spectral_parameterization.ipynb) - Alex, please add a description
 
-[```cnn_spectral_pool.ipynb```](src/cnn_spectral_pool.ipynb) - Pretty sure this is an old version that can be deleted.
-
-[```figure2.ipynb```](src/figure2.ipynb) - This notebook uses the spectral_pool function to downsample an image. Confirm it still works; fix if it doesn't!!
-
-[```figure4.ipynb```](src/figure4.ipynb) - This notebook uses the spectral_pool function to compute the approximation loss. Confirm it still works; fix if it doesn't!!
+[```figure2.ipynb```](src/figure2.ipynb) - This notebook uses the spectral_pool function to downsample an image.
 
 [```hyperparameter-search.ipynb```](src/hyperparameter-search.ipynb) - This notebook performs hyperparameter search on the CIFAR-10 dataset to identify the best hyperparameters.
 
 [```full-training-10.ipynb```](src/full-training-10.ipynb) - This notebook uses the best identified hyperparameters to train the network on the entire CIFAR-10 dataset and compute the test accuracy. It also shows the improved results we got from manual tuning of the hyperparameters. Before running this notebook, unzip ```src/best_model_10.tar.gz```.
 
 [```full-training-100.ipynb```](src/full-training-100.ipynb) - This notebook uses the best identified hyperparameters to train the network on the entire CIFAR-100 dataset and compute the test accuracy. It also shows the improved results we got from manual tuning of the hyperparameters. Before running this notebook, unzip ```src/best_model_100.tar.gz```.
-
-[```Frequency_Dropout_Testing.ipynb```](src/Frequency_Dropout_Testing.ipynb) - This notebook demonstrates frequency dropout in action on a minibatch.
 
 ## Modules
 
