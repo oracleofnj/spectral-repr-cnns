@@ -11,6 +11,7 @@ import matplotlib.pylab as plt
 from modules.utils import load_cifar10, load_cifar100
 from modules.cnn_with_spectral_pooling import CNN_Spectral_Pool
 
+
 # # INSTRUCTIONS - PLEASE READ CAREFULLY
 # 
 # ### GPU Required
@@ -49,13 +50,14 @@ xtrain.shape, ytrain.shape, xtest.shape, ytest.shape
 
 # In[5]:
 
-
+'''
 tf.reset_default_graph()
 cnn = CNN_Spectral_Pool(M=6,
                         num_output=10,
                         verbose=True,
                         gamma=0.79)
 cnn.calc_test_accuracy(xtest, ytest, 'best_cifar_10/test_1513443174.5236883')
+'''
 
 # ## Only run the rest of the notebook to retrain from scratch
 
@@ -83,7 +85,7 @@ cnn.train(xtrain[:-validation_size],
           ytrain[:-validation_size],
           xtrain[-validation_size:],
           ytrain[-validation_size:],
-          batch_size=128,
+          batch_size=256,
           epochs=50,
           extra_conv_layer=True,
           use_global_averaging=True,
