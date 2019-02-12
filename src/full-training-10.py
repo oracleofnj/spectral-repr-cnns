@@ -98,7 +98,7 @@ full_model_name = cnn.full_model_name
 
 # In[6]:
 
-
+'''
 tf.reset_default_graph()
 cnn.calc_test_accuracy(xtest, ytest, 'optimal_hyperparams/optimal_hyperparams_1513542547.9187834')
-
+'''
