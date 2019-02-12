@@ -8,7 +8,7 @@ import tensorflow as tf
 class default_conv_layer(object):
     def __init__(self, input_x, in_channel, out_channel,
                  kernel_shape, rand_seed,
-                 activation=tf.nn.relu,
+                 activation=tf.nn.crelu,
                  m=0):
         """
         NOTE: Image should be CHANNEL FIRST
