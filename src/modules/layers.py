@@ -51,8 +51,10 @@ class default_conv_layer(object):
                 conv_out,
                 self.bias, data_format='NCHW'
             )
+            #Move channel to last
             if activation is not None:
-                cell_out = activation(cell_biased)
+                cell_out = activation(tf.transpose(cell_biased, perm=[0,2,3,1]))
+                cell_out = tf.transpose(cell_out, perm=[0,3,1,2])
             else:
                 cell_out = cell_biased
 
