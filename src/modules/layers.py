@@ -132,7 +132,7 @@ class spectral_pool_layer(object):
         filter_size=3,
         freq_dropout_lower_bound=None,
         freq_dropout_upper_bound=None,
-        activation=tf.nn.relu,
+        activation=tf.nn.crelu,
         m=0,
         train_phase=False
     ):
@@ -198,8 +198,10 @@ class spectral_pool_layer(object):
             else:
                 im_out = tf.real(tf.ifft2d(im_transformed))
 
+            #The default input format for crelu is NHWC, transpose channel dim to the last
             if activation is not None:
-                cell_out = activation(im_out)
+                cell_out = tf.nn.crelu(tf.transpose(im_out, perm=[0, 2, 3, 1]))
+                cell_out = tf.transpose(cell_out, perm=[0, 3, 1, 2])
             else:
                 cell_out = im_out
             tf.summary.histogram('sp_layer/{}/activation'.format(m), cell_out)
