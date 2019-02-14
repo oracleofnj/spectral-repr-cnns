@@ -86,7 +86,7 @@ cnn.train(xtrain[:-validation_size],
           xtrain[-validation_size:],
           ytrain[-validation_size:],
           batch_size=256,
-          epochs=50,
+          epochs=180,
           extra_conv_layer=True,
           use_global_averaging=True,
           model_name='optimal_hyperparams'
