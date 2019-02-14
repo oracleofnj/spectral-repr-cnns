@@ -67,17 +67,15 @@ cnn.calc_test_accuracy(xtest, ytest, 'best_cifar_10/test_1513443174.5236883')
 from modules.cnn_with_spectral_pooling import CNN_Spectral_Pool
 validation_size = 4096
 
-cnn = CNN_Spectral_Pool(M=7,
+cnn = CNN_Spectral_Pool(M=6,
                         num_output=10,
                         verbose=True,
-                        learning_rate=1.09e-3,
-                        l2_norm=2.7e-5,
+                        learning_rate=1e-3,
+                        l2_norm=0.0003,
                         lr_reduction_factor=0.5,
-                        lr_reduction_epochs=[11,21,31,41],
-                        gamma=0.6336)
+                        lr_reduction_epochs=[11,41,61,81,101,121,141],
+                        gamma=0.79)
 
-
-# In[5]:
 
 
 tf.reset_default_graph()
@@ -86,7 +84,7 @@ cnn.train(xtrain[:-validation_size],
           xtrain[-validation_size:],
           ytrain[-validation_size:],
           batch_size=256,
-          epochs=180,
+          epochs=150,
           extra_conv_layer=True,
           use_global_averaging=True,
           model_name='optimal_hyperparams'
