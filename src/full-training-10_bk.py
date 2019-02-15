@@ -75,7 +75,7 @@ cnn = CNN_Spectral_Pool(M=7,
                         lr_reduction_factor=0.5,
                         lr_reduction_epochs=[11,21,31,41],
                         gamma=0.6336)
-
+cnn.calc_test_accuracy(xtest, ytest, 'best_cifar_10/optimal_hyperparams_1550116437.5241544')                       
 
 # In[5]:
 
