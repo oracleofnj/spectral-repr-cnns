@@ -52,9 +52,11 @@ class default_conv_layer(object):
                 self.bias, data_format='NCHW'
             )
             #Move channel to last
-            if activation is not None:
+            if activation is tf.nn.crelu:
                 cell_out = activation(tf.transpose(cell_biased, perm=[0,2,3,1]))
                 cell_out = tf.transpose(cell_out, perm=[0,3,1,2])
+            elif activation is tf.nn.relu:
+                cell_out = activation(cell_biased)
             else:
                 cell_out = cell_biased
 
@@ -201,9 +203,11 @@ class spectral_pool_layer(object):
                 im_out = tf.real(tf.ifft2d(im_transformed))
 
             #The default input format for crelu is NHWC, transpose channel dim to the last
-            if activation is not None:
-                cell_out = tf.nn.crelu(tf.transpose(im_out, perm=[0, 2, 3, 1]))
+            if activation is tf.nn.crelu:
+                cell_out = activation(tf.transpose(im_out, perm=[0, 2, 3, 1]))
                 cell_out = tf.transpose(cell_out, perm=[0, 3, 1, 2])
+            elif activation is tf.nn.relu:
+                cell_out = activation(im_out)
             else:
                 cell_out = im_out
             tf.summary.histogram('sp_layer/{}/activation'.format(m), cell_out)
