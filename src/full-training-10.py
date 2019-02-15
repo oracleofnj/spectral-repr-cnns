@@ -66,15 +66,24 @@ cnn.calc_test_accuracy(xtest, ytest, 'best_cifar_10/test_1513443174.5236883')
 from modules.cnn_with_spectral_pooling import CNN_Spectral_Pool
 validation_size = 4096
 
+'''
 cnn = CNN_Spectral_Pool(M=6,
                         num_output=10,
                         verbose=True,
-                        learning_rate=0.8e-3,
+                        learning_rate=0.8e-4,
                         l2_norm=0.0003,
                         lr_reduction_factor=0.5,
                         lr_reduction_epochs=[11,41,61,81,101,121,141],
                         gamma=0.79)
-
+'''
+cnn = CNN_Spectral_Pool(M=7,
+                        num_output=10,
+                        verbose=True,
+                        learning_rate=1.09e-3,
+                        l2_norm=2.7e-5,
+                        lr_reduction_factor=0.5,
+                        lr_reduction_epochs=[11,21,31,41],
+                        gamma=0.6336)
 
 
 tf.reset_default_graph()

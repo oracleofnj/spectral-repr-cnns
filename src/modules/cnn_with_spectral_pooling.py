@@ -148,6 +148,12 @@ class CNN_Spectral_Pool(object):
                 in_x = input_x
             else:
                 in_x = layers[-1].output()
+            
+            # Use hybrid activation functions
+            if m <= self.M - 2:
+                activation = tf.nn.crelu
+            else:
+                activation = tf.nn.relu
 
             # First add the convolutional layer.
             # get number of channels & image size
@@ -174,6 +180,7 @@ class CNN_Spectral_Pool(object):
                     in_channel=nchannel,
                     out_channel=nfilters,
                     kernel_shape=self.conv_filter_size,
+                    activation=activation,
                     rand_seed=seed,
                     m=m
                 )
