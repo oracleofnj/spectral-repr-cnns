@@ -136,7 +136,7 @@ class spectral_pool_layer(object):
         filter_size=3,
         freq_dropout_lower_bound=None,
         freq_dropout_upper_bound=None,
-        activation=tf.nn.crelu,
+        activation=tf.nn.relu,
         m=0,
         train_phase=False
     ):

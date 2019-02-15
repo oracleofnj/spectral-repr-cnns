@@ -150,7 +150,7 @@ class CNN_Spectral_Pool(object):
                 in_x = layers[-1].output()
             
             # Use hybrid activation functions
-            if m <= self.M - 2:
+            if m <= self.M - 1:
                 activation = tf.nn.crelu
             else:
                 activation = tf.nn.relu
@@ -207,6 +207,7 @@ class CNN_Spectral_Pool(object):
                 freq_dropout_lower_bound=freq_dropout_lower_bound,
                 freq_dropout_upper_bound=freq_dropout_upper_bound,
                 m=m,
+                activation=activation,
                 train_phase=train_phase
             )
             layers.append(sp_layer)
