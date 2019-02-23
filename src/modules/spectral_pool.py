@@ -28,7 +28,7 @@ def _common_spectral_pool(images, filter_size):
         )
         top_middle = tf.expand_dims(
             tf.cast(0.5 ** 0.5, tf.complex64) *
-            (images[:, :, 1:n, n] + tf.reverse(images[:, :, -(n-1):, -n], dims = -2)),
+            (images[:, :, 1:n, n] + tf.reverse(images[:, :, -(n-1):, -n], dims=-2)),
             -1
         )
         top_right = images[:, :, :n, -(n-1):]
@@ -36,14 +36,14 @@ def _common_spectral_pool(images, filter_size):
         middle_0 = tf.expand_dims(
             tf.expand_dims(
                 tf.cast(0.5 ** 0.5, tf.complex64) *
-                (images[:, :, n, 0]+images[:, :, -n, 0]),
+                (images[:, :, n, 0] + images[:, :, -n, 0]),
                 -1
             )
             -1
         )
         middle_left = tf.expand_dims(
             tf.cast(0.5 ** 0.5, tf.complex64) *
-            (images[:, :, n, 1:n] + images[:, :, -n, -(n-1):n]),
+            (images[:, :, n, 1:n] + tf.reverse(images[:, :, -n, -(n-1):], dims=-1)),
             -2
         )
         middle_middle = tf.expand_dims(
@@ -57,28 +57,42 @@ def _common_spectral_pool(images, filter_size):
         )
         middle_right = tf.expand_dims(
             tf.cast(0.5 ** 0.5, tf.complex64) *
-            (images[:, :, n, -(n-1):] + images[:, :, -n, -(n-1):]),
+            (images[:, :, n, -(n-1):] + tf.reverse(images[:, :, -n, 1:n], dims=-1)),
             -2
         )
+        # bottom n rows of pooling result
         bottom_left = images[:, :, -(n-1):, :n]
         bottom_middle = tf.expand_dims(
             tf.cast(0.5 ** 0.5, tf.complex64) *
-            (images[:, :, -(n-1):, n] + images[:, :, -(n-1):, -n]),
+            (images[:, :, -(n-1):, n] + tf.reverse(images[:, :, 1:n, -n], dims=-2)),
             -1
         )
         bottom_right = images[:, :, -(n-1):, -(n-1):]
+        
+        # Merge all parts
+        top_middle = tf.concat(
+            [top_0, top_middle],
+            axis=-2
+        )
         top_combined = tf.concat(
             [top_left, top_middle, top_right],
+            axis=-1
+        )
+
+        middle_left = tf.concat(
+            [middle_0, middle_left],
             axis=-1
         )
         middle_combined = tf.concat(
             [middle_left, middle_middle, middle_right],
             axis=-1
         )
+
         bottom_combined = tf.concat(
             [bottom_left, bottom_middle, bottom_right],
             axis=-1
         )
+
         all_together = tf.concat(
             [top_combined, middle_combined, bottom_combined],
             axis=-2
