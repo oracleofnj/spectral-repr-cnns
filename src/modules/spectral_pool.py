@@ -17,15 +17,33 @@ def _common_spectral_pool(images, filter_size):
     else:
         n = filter_size // 2
         top_left = images[:, :, :n, :n]
+        # top n rows of pooling result
+        top_0 = tf.expand_dims(
+            tf.expand_dims(
+                tf.cast(0.5 ** 0.5, tf.complex64) *
+                (images[:, :, 0, n] + images[:, :, 0, -n]),
+                -1
+            ),
+            -1
+        )
         top_middle = tf.expand_dims(
             tf.cast(0.5 ** 0.5, tf.complex64) *
-            (images[:, :, :n, n] + images[:, :, :n, -n]),
+            (images[:, :, 1:n, n] + tf.reverse(images[:, :, -(n-1):, -n], dims = -2)),
             -1
         )
         top_right = images[:, :, :n, -(n-1):]
+        # middle row of pooling result 
+        middle_0 = tf.expand_dims(
+            tf.expand_dims(
+                tf.cast(0.5 ** 0.5, tf.complex64) *
+                (images[:, :, n, 0]+images[:, :, -n, 0]),
+                -1
+            )
+            -1
+        )
         middle_left = tf.expand_dims(
             tf.cast(0.5 ** 0.5, tf.complex64) *
-            (images[:, :, n, :n] + images[:, :, -n, :n]),
+            (images[:, :, n, 1:n] + images[:, :, -n, -(n-1):n]),
             -2
         )
         middle_middle = tf.expand_dims(
